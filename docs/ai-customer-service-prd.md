@@ -748,6 +748,44 @@ MVP 推荐 PostgreSQL + pgvector。
 - created_at
 - updated_at
 
+### 10.13 multilingual_settings
+
+多语言配置后续增强，用于站点和租户级语言管理。
+
+- id
+- customer_id
+- tenant_id
+- site_id
+- default_locale
+- enabled_locales
+- widget_i18n
+- glossary_enabled
+- created_at
+- updated_at
+
+### 10.14 translation_jobs
+
+知识库 AI 翻译任务表，后续用于多语言知识库生成和质量追踪。
+
+- id
+- customer_id
+- tenant_id
+- site_id
+- source_id
+- source_locale
+- target_locale
+- status
+- model
+- glossary_version
+- error_message
+- retry_count
+- reviewed_by
+- reviewed_at
+- created_at
+- updated_at
+
+知识切块后续需要补充 `locale`、`source_locale`、`translation_status`、`translated_from_chunk_id` 等字段，保证向量检索可以按当前租户和当前语言过滤。
+
 ## 11. API 草案
 
 ### 11.1 Widget API
@@ -773,6 +811,9 @@ MVP 推荐 PostgreSQL + pgvector。
 - `POST /api/calendar/bookings`
   - 后续增强：基于对话框收集到的联系信息创建预约。
 
+- `POST /api/translation-jobs`
+  - 后续增强：为指定知识来源创建目标语言翻译任务。
+
 ### 11.2 Admin API
 
 - `POST /api/admin/login`
@@ -788,6 +829,9 @@ MVP 推荐 PostgreSQL + pgvector。
 - `POST /api/admin/integrations`
 - `PUT /api/admin/integrations/:id`
 - `POST /api/admin/leads/:id/retry-sync`
+- `GET /api/admin/translations`
+- `POST /api/admin/translations/:id/retry`
+- `POST /api/admin/translations/:id/approve`
 
 ## 12. 界面需求
 
@@ -896,6 +940,14 @@ MVP 上线后重点观察：
 - 在后台展示同步状态、外部记录 ID、失败原因和重试入口
 - 支持字段映射、隐藏字段和客户独立密钥配置
 
+### 阶段 7：多语言内容与 AI 翻译
+
+- Widget 支持 `data-locale` 和浏览器语言自动检测
+- 后台支持站点/租户默认语言、启用语言、欢迎语和推荐问题的多语言配置
+- 知识库同步后触发 AI 翻译任务，并记录翻译状态、模型和失败原因
+- 向量检索增加 `tenant_id + locale` 过滤，同语言不足时回退默认语言
+- 价格、合同、交付承诺等高风险内容进入人工复核后再发布多语言版本
+
 ## 16. 验收标准
 
 - 官网可以通过一段 JS 成功嵌入 AI 助理。
@@ -916,6 +968,14 @@ MVP 上线后重点观察：
 - 后台可以查看同步状态和失败原因。
 - 不同客户的集成密钥、字段映射和同步日志互相隔离。
 
+多语言能力验收标准：
+
+- 同一个 Widget 可以通过 `data-locale` 指定语言。
+- 后台可以为不同语言配置欢迎语和推荐问题。
+- 知识库翻译任务有状态、失败原因和重试入口。
+- RAG 检索不会跨租户或跨未启用语言读取内容。
+- AI 回答语言跟随访客语言，且敏感商务内容不会因翻译产生承诺偏差。
+
 ## 17. 待确认问题
 
 - 官网当前有哪些页面需要进入知识库？
@@ -929,6 +989,10 @@ MVP 上线后重点观察：
 - 日程预约优先使用客户已有日历，还是使用预约链接方式？
 - 客户现有表单是否支持 Webhook/API 提交？
 - 线索同步失败后需要重试几次、保留多久？
+- 第一批多语言优先支持哪些语言？
+- 官网内容是否需要人工确认后才发布机器译文？
+- 产品名、品牌名、行业术语是否有固定翻译表？
+- 多语言回答是否需要展示“机器翻译”提示？
 
 ## 18. 参考资料
 
@@ -940,3 +1004,4 @@ MVP 上线后重点观察：
 
 - [AI 客服 Harmless 安全策略](./ai-customer-service-harmless-policy.md)
 - [客户独立服务计划](./customer-dedicated-service-plan.md)
+- [多语言内容与 AI 翻译计划](./multilingual-content-plan.md)

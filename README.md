@@ -126,3 +126,4 @@ npm run build
 - [PRD](./docs/ai-customer-service-prd.md)
 - [Harmless 安全策略](./docs/ai-customer-service-harmless-policy.md)
 - [客户独立服务计划](./docs/customer-dedicated-service-plan.md)
+- [多语言内容与 AI 翻译计划](./docs/multilingual-content-plan.md)
