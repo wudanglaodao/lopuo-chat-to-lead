@@ -22,11 +22,13 @@ export type AnswerResult = {
 
 export async function answerQuestion({
   customerId,
+  tenantId,
   siteId,
   conversationId,
   question,
 }: {
   customerId: string;
+  tenantId?: string | null;
   siteId: string;
   conversationId: string;
   question: string;
@@ -43,6 +45,17 @@ export async function answerQuestion({
 
   if (!site) {
     throw new Error("Site not found.");
+  }
+
+  const activeTenantId = tenantId || site.defaultTenantId;
+  if (!activeTenantId) {
+    return {
+      answer: buildLowConfidenceMessage(),
+      sources: [],
+      isMiss: true,
+      model: getChatModel(site.deepseekModel),
+      latencyMs: Date.now() - startedAt,
+    };
   }
 
   if (isPromptInjectionAttempt(question)) {
@@ -65,7 +78,7 @@ export async function answerQuestion({
     };
   }
 
-  const sources = await findRelevantChunks({ customerId, siteId, query: question });
+  const sources = await findRelevantChunks({ customerId, tenantId: activeTenantId, query: question });
   const bestScore = sources[0]?.score ?? null;
 
   if (shouldUseLowConfidenceFallback(bestScore)) {
@@ -121,12 +134,12 @@ export async function answerQuestion({
 
 export async function findRelevantChunks({
   customerId,
-  siteId,
+  tenantId,
   query,
   limit = 5,
 }: {
   customerId: string;
-  siteId: string;
+  tenantId: string;
   query: string;
   limit?: number;
 }) {
@@ -149,7 +162,7 @@ export async function findRelevantChunks({
       1 - (${knowledgeChunks.embedding} <=> ${vector}) AS score
     FROM ${knowledgeChunks}
     WHERE ${knowledgeChunks.customerId} = ${customerId}
-      AND ${knowledgeChunks.siteId} = ${siteId}
+      AND ${knowledgeChunks.tenantId} = ${tenantId}
     ORDER BY ${knowledgeChunks.embedding} <=> ${vector}
     LIMIT ${limit}
   `);

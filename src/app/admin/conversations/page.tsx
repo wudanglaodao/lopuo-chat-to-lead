@@ -15,6 +15,7 @@ type ConversationRow = {
   hasMiss: boolean;
   hasLead: boolean;
   updatedAt?: Date;
+  tenant?: { id: string; name: string } | null;
   messages: Array<{ id: string; role: string; content: string }>;
   leads: Array<{
     id: string;
@@ -33,6 +34,7 @@ export default async function ConversationsPage() {
     : await getDb().query.conversations.findMany({
         where: and(eq(conversations.customerId, session.customerId), eq(conversations.siteId, session.siteId)),
         with: {
+          tenant: true,
           messages: true,
           leads: true,
         },
@@ -70,10 +72,11 @@ export default async function ConversationsPage() {
         </div>
 
         <div className="mt-7 overflow-x-auto">
-          <div className="min-w-[980px]">
-            <div className="grid grid-cols-[44px_1.35fr_1.25fr_120px_110px_1fr_86px] gap-4 border-b border-black/[0.06] px-2 pb-4 text-sm font-bold text-[#777e89] dark:border-white/10 dark:text-white/45">
+          <div className="min-w-[1120px]">
+            <div className="grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_86px] gap-4 border-b border-black/[0.06] px-2 pb-4 text-sm font-bold text-[#777e89] dark:border-white/10 dark:text-white/45">
               <div />
               <div>Visitor</div>
+              <div>Tenant</div>
               <div>Page</div>
               <div>Status</div>
               <div>Messages</div>
@@ -90,7 +93,7 @@ export default async function ConversationsPage() {
                   <div
                     key={conversation.id}
                     className={[
-                      "grid grid-cols-[44px_1.35fr_1.25fr_120px_110px_1fr_86px] items-center gap-4 px-2 py-4 text-sm transition",
+                      "grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_86px] items-center gap-4 px-2 py-4 text-sm transition",
                       index === 1 ? "rounded-[18px] bg-[#f0f2f5] dark:bg-white/8" : "hover:bg-[#f7f7f8] dark:hover:bg-white/[0.05]",
                     ].join(" ")}
                   >
@@ -105,6 +108,9 @@ export default async function ConversationsPage() {
                         <div className="truncate text-base font-bold text-[#1f2024] dark:text-white">{lead?.name || `访客 ${index + 1}`}</div>
                         <div className="mt-1 truncate text-sm font-semibold text-[#777e89]">{preview}</div>
                       </div>
+                    </div>
+                    <div>
+                      <TenantPill name={conversation.tenant?.name || "默认租户"} />
                     </div>
                     <div className="min-w-0">
                       <div className="truncate font-bold text-[#5d646f] dark:text-white/70">{conversation.pageUrl || "未知页面"}</div>
@@ -167,6 +173,14 @@ function Badge({ children, tone }: { children: React.ReactNode; tone: "green" | 
   return <span className={`rounded-full px-3 py-1 text-xs font-bold ${className}`}>{children}</span>;
 }
 
+function TenantPill({ name }: { name: string }) {
+  return (
+    <span className="inline-flex max-w-[140px] truncate rounded-full bg-[#f0ebff] px-3 py-1.5 text-xs font-bold text-[#6c4fd1] dark:bg-[#c7b6ff]/18 dark:text-[#d8ccff]">
+      {name}
+    </span>
+  );
+}
+
 function getPreview(conversation: ConversationRow) {
   return conversation.messages.find((message) => message.role === "user")?.content || "暂无咨询内容";
 }
@@ -189,6 +203,7 @@ function getDemoConversations(): ConversationRow[] {
       hasMiss: false,
       hasLead: true,
       updatedAt: new Date(),
+      tenant: { id: "22222222-2222-4222-8222-222222222222", name: "默认租户" },
       messages: [
         { id: "demo-message-1", role: "user", content: "你们能帮我的企业解决什么具体问题？" },
         {
@@ -205,6 +220,7 @@ function getDemoConversations(): ConversationRow[] {
       hasMiss: true,
       hasLead: false,
       updatedAt: new Date(Date.now() - 1000 * 60 * 16),
+      tenant: { id: "33333333-3333-4333-8333-333333333333", name: "售前咨询" },
       messages: [
         { id: "demo-message-3", role: "user", content: "具体报价怎么做？" },
         { id: "demo-message-4", role: "assistant", content: "这个问题需要同事结合需求确认，我可以先记录联系方式。" },
@@ -217,6 +233,7 @@ function getDemoConversations(): ConversationRow[] {
       hasMiss: false,
       hasLead: true,
       updatedAt: new Date(Date.now() - 1000 * 60 * 48),
+      tenant: { id: "33333333-3333-4333-8333-333333333333", name: "售前咨询" },
       messages: [
         { id: "demo-message-5", role: "user", content: "增长超人是一家怎样的公司？" },
         { id: "demo-message-6", role: "assistant", content: "这是基于官网知识库整理的公司介绍。" },
@@ -229,6 +246,7 @@ function getDemoConversations(): ConversationRow[] {
       hasMiss: false,
       hasLead: false,
       updatedAt: new Date(Date.now() - 1000 * 60 * 90),
+      tenant: { id: "22222222-2222-4222-8222-222222222222", name: "默认租户" },
       messages: [
         { id: "demo-message-7", role: "user", content: "你们有哪些解决方案？" },
         { id: "demo-message-8", role: "assistant", content: "可以从官网知识库中提取服务、产品和案例内容进行回答。" },

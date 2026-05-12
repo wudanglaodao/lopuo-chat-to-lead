@@ -29,5 +29,17 @@ export function isAllowedOrigin(origin: string | null, allowedOrigins: string[])
   }
 
   const host = normalizeOrigin(origin);
-  return allowedOrigins.some((allowed) => normalizeOrigin(allowed) === host);
+  return allowedOrigins.some((allowed) => originsMatch(host, normalizeOrigin(allowed)));
+}
+
+function originsMatch(actual: string, allowed: string) {
+  if (actual === allowed) {
+    return true;
+  }
+
+  return stripWww(actual) === stripWww(allowed);
+}
+
+function stripWww(host: string) {
+  return host.replace(/^www\./, "");
 }

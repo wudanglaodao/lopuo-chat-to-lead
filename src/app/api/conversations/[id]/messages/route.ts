@@ -51,6 +51,7 @@ export async function POST(
 
   await db.insert(messages).values({
     customerId: conversation.customerId,
+    tenantId: conversation.tenantId,
     siteId: conversation.siteId,
     conversationId: conversation.id,
     role: "user",
@@ -59,6 +60,7 @@ export async function POST(
 
   const result = await answerQuestion({
     customerId: conversation.customerId,
+    tenantId: conversation.tenantId,
     siteId: conversation.siteId,
     conversationId: conversation.id,
     question: body.message,
@@ -68,6 +70,7 @@ export async function POST(
     .insert(messages)
     .values({
       customerId: conversation.customerId,
+      tenantId: conversation.tenantId,
       siteId: conversation.siteId,
       conversationId: conversation.id,
       role: "assistant",

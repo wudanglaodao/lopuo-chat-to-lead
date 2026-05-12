@@ -13,6 +13,11 @@ export async function GET() {
         {
           id: "demo-conversation",
           customerId: session.customerId,
+          tenantId: "22222222-2222-4222-8222-222222222222",
+          tenant: {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "默认租户",
+          },
           siteId: session.siteId,
           pageUrl: "http://localhost:3000/demo",
           hasMiss: false,
@@ -50,6 +55,7 @@ export async function GET() {
       eq(conversations.siteId, session.siteId),
     ),
     with: {
+      tenant: true,
       messages: true,
       leads: true,
     },

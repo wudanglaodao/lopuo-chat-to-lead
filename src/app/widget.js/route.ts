@@ -8,11 +8,12 @@ export function GET(request: NextRequest) {
 (function () {
   var currentScript = document.currentScript;
   var siteId = currentScript && currentScript.dataset ? currentScript.dataset.siteId : "";
+  var tenantId = currentScript && currentScript.dataset ? currentScript.dataset.tenantId : "";
   var previewStyle = currentScript && currentScript.dataset ? currentScript.dataset.previewStyle : "";
   var previewText = currentScript && currentScript.dataset ? currentScript.dataset.previewText : "";
   var iframe = document.createElement("iframe");
   iframe.title = "AI 客服助手";
-  iframe.src = ${JSON.stringify(baseUrl)} + "/widget?siteId=" + encodeURIComponent(siteId || "") + "&previewStyle=" + encodeURIComponent(previewStyle || "") + "&previewText=" + encodeURIComponent(previewText || "");
+  iframe.src = ${JSON.stringify(baseUrl)} + "/widget?siteId=" + encodeURIComponent(siteId || "") + "&tenantId=" + encodeURIComponent(tenantId || "") + "&previewStyle=" + encodeURIComponent(previewStyle || "") + "&previewText=" + encodeURIComponent(previewText || "");
   iframe.style.position = "fixed";
   iframe.style.right = "20px";
   iframe.style.bottom = "20px";

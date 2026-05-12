@@ -1,12 +1,13 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
-import { getDb, sites } from "@/db";
+import { getDb, sites, tenants } from "@/db";
 import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 import { isAllowedOrigin } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const siteId = request.nextUrl.searchParams.get("siteId");
+  const requestedTenantId = request.nextUrl.searchParams.get("tenantId");
 
   if (!siteId) {
     return NextResponse.json({ error: "siteId is required." }, { status: 400 });
@@ -34,8 +35,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Origin is not allowed." }, { status: 403 });
   }
 
+  let tenantId = site.defaultTenantId;
+  if (requestedTenantId) {
+    const [tenant] = await db
+      .select()
+      .from(tenants)
+      .where(and(eq(tenants.id, requestedTenantId), eq(tenants.customerId, site.customerId)))
+      .limit(1);
+
+    if (!tenant) {
+      return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+    }
+
+    tenantId = tenant.id;
+  }
+
   return NextResponse.json({
     siteId: site.id,
+    tenantId,
     customerId: site.customerId,
     widgetName: site.widgetName,
     launcherText: site.launcherText,

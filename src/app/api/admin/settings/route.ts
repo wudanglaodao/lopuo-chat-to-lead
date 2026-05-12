@@ -1,12 +1,13 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getDb, sites } from "@/db";
+import { getDb, sites, tenants } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 
 const settingsSchema = z.object({
+  defaultTenantId: z.string().uuid().optional().nullable(),
   widgetName: z.string().min(1).max(80),
   launcherText: z.string().min(1).max(80),
   welcomeMessage: z.string().min(1).max(1000),
@@ -34,7 +35,8 @@ export async function GET() {
         customerId: session.customerId,
         name: "演示站点",
         domain: "lopuo.work",
-        allowedOrigins: ["lopuo.work", "localhost:3000", "127.0.0.1:3000"],
+        defaultTenantId: "22222222-2222-4222-8222-222222222222",
+        allowedOrigins: ["lopuo.work", "www.lopuo.work", "localhost:3000", "127.0.0.1:3000"],
         systemPrompt: "",
         deepseekModel: "",
         embeddingModel: "",
@@ -63,6 +65,18 @@ export async function PUT(request: NextRequest) {
   }
 
   const db = getDb();
+  if (body.defaultTenantId) {
+    const [tenant] = await db
+      .select()
+      .from(tenants)
+      .where(and(eq(tenants.id, body.defaultTenantId), eq(tenants.customerId, session.customerId)))
+      .limit(1);
+
+    if (!tenant) {
+      return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+    }
+  }
+
   const [site] = await db
     .update(sites)
     .set({

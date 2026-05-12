@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 type WidgetConfig = {
   siteId: string;
+  tenantId?: string | null;
   widgetName: string;
   launcherText: string;
   launcherStyle: "pill" | "vertical" | "mascot";
@@ -28,10 +29,12 @@ type ChatMessage = {
 
 export function WidgetApp({
   siteId,
+  tenantId,
   previewStyle,
   previewText,
 }: {
   siteId: string;
+  tenantId?: string;
   previewStyle?: string;
   previewText?: string;
 }) {
@@ -73,6 +76,7 @@ export function WidgetApp({
 
     const params = new URLSearchParams({
       siteId,
+      tenantId: tenantId || "",
       previewStyle: previewStyle || "",
       previewText: previewText || "",
     });
@@ -84,19 +88,22 @@ export function WidgetApp({
       })
       .then(setConfig)
       .catch((err: Error) => setError(err.message));
-  }, [siteId, previewStyle, previewText]);
+  }, [siteId, tenantId, previewStyle, previewText]);
 
   const ensureConversation = useCallback(async () => {
     if (conversationId) {
       return conversationId;
     }
 
-    const stored = window.localStorage.getItem(`lopuo_ai_conversation_${siteId}`) || undefined;
+    const activeTenantId = config?.tenantId || tenantId || "default";
+    const storageKey = `lopuo_ai_conversation_${siteId}_${activeTenantId}`;
+    const stored = window.localStorage.getItem(storageKey) || undefined;
     const response = await fetch("/api/conversations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         siteId,
+        tenantId: config?.tenantId || tenantId || undefined,
         visitorId,
         conversationId: stored,
         pageUrl: document.referrer || window.location.href,
@@ -109,10 +116,10 @@ export function WidgetApp({
     }
 
     const data = (await response.json()) as { conversationId: string };
-    window.localStorage.setItem(`lopuo_ai_conversation_${siteId}`, data.conversationId);
+    window.localStorage.setItem(storageKey, data.conversationId);
     setConversationId(data.conversationId);
     return data.conversationId;
-  }, [conversationId, siteId, visitorId]);
+  }, [config?.tenantId, conversationId, siteId, tenantId, visitorId]);
 
   async function sendMessage(content: string) {
     const text = content.trim();

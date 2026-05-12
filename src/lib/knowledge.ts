@@ -12,10 +12,12 @@ export type ExtractedPage = {
 
 export async function addKnowledgeSource({
   customerId,
+  tenantId,
   siteId,
   url,
 }: {
   customerId: string;
+  tenantId: string;
   siteId: string;
   url: string;
 }) {
@@ -26,12 +28,13 @@ export async function addKnowledgeSource({
     .insert(knowledgeSources)
     .values({
       customerId,
+      tenantId,
       siteId,
       url: normalizedUrl,
       status: "pending",
     })
     .onConflictDoUpdate({
-      target: [knowledgeSources.siteId, knowledgeSources.url],
+      target: [knowledgeSources.tenantId, knowledgeSources.url],
       set: {
         status: "pending",
         lastError: null,
@@ -84,6 +87,7 @@ export async function syncKnowledgeSource(sourceId: string, customerId: string) 
         await tx.insert(knowledgeChunks).values(
           uniqueChunks.map((chunk, index) => ({
             customerId: source.customerId,
+            tenantId: source.tenantId,
             siteId: source.siteId,
             sourceId: source.id,
             url: source.url,

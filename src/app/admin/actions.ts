@@ -1,10 +1,10 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getDb, sites } from "@/db";
+import { getDb, sites, tenants } from "@/db";
 import { clearSessionCookie, requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { addKnowledgeSource, syncKnowledgeSource } from "@/lib/knowledge";
@@ -17,8 +17,9 @@ export async function logoutAction() {
 export async function addKnowledgeSourceAction(formData: FormData) {
   const session = await requireAdmin();
   const url = String(formData.get("url") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
 
-  if (!url) {
+  if (!url || !tenantId) {
     return;
   }
 
@@ -27,11 +28,57 @@ export async function addKnowledgeSourceAction(formData: FormData) {
     return;
   }
 
+  const db = getDb();
+  const [tenant] = await db
+    .select()
+    .from(tenants)
+    .where(and(eq(tenants.id, tenantId), eq(tenants.customerId, session.customerId)))
+    .limit(1);
+
+  if (!tenant) {
+    return;
+  }
+
   await addKnowledgeSource({
     customerId: session.customerId,
+    tenantId,
     siteId: session.siteId,
     url,
   });
+
+  revalidatePath("/admin/knowledge");
+}
+
+export async function createTenantAction(formData: FormData) {
+  const session = await requireAdmin();
+  const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+
+  if (!name) {
+    return;
+  }
+
+  if (isDemoMode()) {
+    revalidatePath("/admin/knowledge");
+    return;
+  }
+
+  const db = getDb();
+  await db
+    .insert(tenants)
+    .values({
+      customerId: session.customerId,
+      name,
+      description: description || null,
+    })
+    .onConflictDoUpdate({
+      target: [tenants.customerId, tenants.name],
+      set: {
+        description: description || null,
+        status: "active",
+        updatedAt: sql`now()`,
+      },
+    });
 
   revalidatePath("/admin/knowledge");
 }
@@ -62,10 +109,22 @@ export async function updateSettingsAction(formData: FormData) {
   }
 
   const db = getDb();
+  const requestedDefaultTenantId = String(formData.get("defaultTenantId") || "").trim();
+  let defaultTenantId: string | null = null;
+
+  if (requestedDefaultTenantId) {
+    const [defaultTenant] = await db
+      .select()
+      .from(tenants)
+      .where(and(eq(tenants.id, requestedDefaultTenantId), eq(tenants.customerId, session.customerId)))
+      .limit(1);
+    defaultTenantId = defaultTenant?.id || null;
+  }
 
   await db
     .update(sites)
     .set({
+      defaultTenantId,
       widgetName: String(formData.get("widgetName") || "AI 助理"),
       launcherText: String(formData.get("launcherText") || "AI 助理"),
       welcomeMessage: String(formData.get("welcomeMessage") || ""),

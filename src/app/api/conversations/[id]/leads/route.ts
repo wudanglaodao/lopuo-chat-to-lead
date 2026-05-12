@@ -41,6 +41,7 @@ export async function POST(
     .insert(leads)
     .values({
       customerId: conversation.customerId,
+      tenantId: conversation.tenantId,
       siteId: conversation.siteId,
       conversationId: conversation.id,
       name: body.name,

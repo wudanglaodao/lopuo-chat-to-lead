@@ -7,6 +7,7 @@ import {
 
 export const DEMO_SITE_ID = "11111111-1111-4111-8111-111111111111";
 export const DEMO_CUSTOMER_ID = "00000000-0000-0000-0000-000000000001";
+export const DEMO_TENANT_ID = "22222222-2222-4222-8222-222222222222";
 
 export function isDemoMode() {
   return !process.env.DATABASE_URL && process.env.NODE_ENV !== "production";
@@ -27,6 +28,7 @@ export function getDemoWidgetConfig({
 
   return {
     siteId,
+    tenantId: DEMO_TENANT_ID,
     customerId: DEMO_CUSTOMER_ID,
     widgetName: "AI 助理",
     launcherText: previewText || (launcherStyle === "pill" ? "与 AI 聊天" : "AI 助理"),

@@ -30,6 +30,25 @@ export const customers = pgTable("customers", {
   updatedAt: updatedAt(),
 });
 
+export const tenants = pgTable(
+  "tenants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: text("status").notNull().default("active"),
+    createdAt: now(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("tenants_customer_idx").on(table.customerId),
+    uniqueIndex("tenants_customer_name_idx").on(table.customerId, table.name),
+  ],
+);
+
 export const sites = pgTable(
   "sites",
   {
@@ -37,6 +56,9 @@ export const sites = pgTable(
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
+    defaultTenantId: uuid("default_tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
     name: text("name").notNull(),
     domain: text("domain").notNull(),
     widgetName: text("widget_name").notNull().default("AI 助理"),
@@ -87,6 +109,9 @@ export const knowledgeSources = pgTable(
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
     siteId: uuid("site_id")
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
@@ -99,7 +124,8 @@ export const knowledgeSources = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
-    uniqueIndex("knowledge_sources_site_url_idx").on(table.siteId, table.url),
+    uniqueIndex("knowledge_sources_tenant_url_idx").on(table.tenantId, table.url),
+    index("knowledge_sources_tenant_idx").on(table.tenantId),
     index("knowledge_sources_site_idx").on(table.siteId),
   ],
 );
@@ -111,6 +137,9 @@ export const knowledgeChunks = pgTable(
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
     siteId: uuid("site_id")
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
@@ -128,10 +157,11 @@ export const knowledgeChunks = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
-    uniqueIndex("knowledge_chunks_site_hash_idx").on(
-      table.siteId,
+    uniqueIndex("knowledge_chunks_tenant_hash_idx").on(
+      table.tenantId,
       table.contentHash,
     ),
+    index("knowledge_chunks_tenant_idx").on(table.tenantId),
     index("knowledge_chunks_site_idx").on(table.siteId),
     index("knowledge_chunks_embedding_idx").using(
       "hnsw",
@@ -147,6 +177,9 @@ export const conversations = pgTable(
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
     siteId: uuid("site_id")
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
@@ -160,6 +193,7 @@ export const conversations = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
+    index("conversations_tenant_updated_idx").on(table.tenantId, table.updatedAt),
     index("conversations_site_updated_idx").on(table.siteId, table.updatedAt),
   ],
 );
@@ -171,6 +205,9 @@ export const messages = pgTable(
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
     siteId: uuid("site_id")
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
@@ -200,6 +237,9 @@ export const leads = pgTable(
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
     siteId: uuid("site_id")
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
@@ -214,12 +254,26 @@ export const leads = pgTable(
     requirement: text("requirement"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("leads_site_created_idx").on(table.siteId, table.createdAt)],
+  (table) => [
+    index("leads_tenant_created_idx").on(table.tenantId, table.createdAt),
+    index("leads_site_created_idx").on(table.siteId, table.createdAt),
+  ],
 );
 
 export const customerRelations = relations(customers, ({ many }) => ({
   sites: many(sites),
   users: many(customerUsers),
+  tenants: many(tenants),
+}));
+
+export const tenantRelations = relations(tenants, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [tenants.customerId],
+    references: [customers.id],
+  }),
+  sources: many(knowledgeSources),
+  chunks: many(knowledgeChunks),
+  conversations: many(conversations),
 }));
 
 export const siteRelations = relations(sites, ({ one, many }) => ({
@@ -227,11 +281,19 @@ export const siteRelations = relations(sites, ({ one, many }) => ({
     fields: [sites.customerId],
     references: [customers.id],
   }),
+  defaultTenant: one(tenants, {
+    fields: [sites.defaultTenantId],
+    references: [tenants.id],
+  }),
   sources: many(knowledgeSources),
   conversations: many(conversations),
 }));
 
-export const conversationRelations = relations(conversations, ({ many }) => ({
+export const conversationRelations = relations(conversations, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [conversations.tenantId],
+    references: [tenants.id],
+  }),
   messages: many(messages),
   leads: many(leads),
 }));
@@ -251,6 +313,7 @@ export const leadRelations = relations(leads, ({ one }) => ({
 }));
 
 export type Customer = typeof customers.$inferSelect;
+export type Tenant = typeof tenants.$inferSelect;
 export type Site = typeof sites.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;

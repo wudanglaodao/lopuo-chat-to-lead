@@ -69,7 +69,7 @@
 - 复杂权限体系
 - 完整访客浏览轨迹、页面停留时长、沟通意图评分和销售线索自动分级
 
-说明：第一版不做完整多租户 SaaS 管理，但从数据模型和服务边界上预留客户隔离能力，方便后续按客户独立交付。
+说明：第一版先不做完整计费型 SaaS，但数据模型已按企业多租户设计。`customers` 表示企业客户，`tenants` 表示企业下的业务空间；知识库、会话、消息和线索都需要带 `tenant_id`，站点和 Widget 只负责官网嵌入与默认租户配置。
 
 ## 5. 用户角色
 
@@ -532,11 +532,39 @@ MVP 推荐 PostgreSQL + pgvector。
 
 ## 10. 数据模型草案
 
-### 10.1 sites
+### 10.1 customers
+
+企业客户表。
+
+- id
+- name
+- status
+- service_mode
+- primary_domain
+- contact_name
+- contact_email
+- created_at
+- updated_at
+
+### 10.2 tenants
+
+企业下租户空间表。适合按品牌、事业部、客户项目或解决方案线拆分。
+
+- id
+- customer_id
+- name
+- description
+- status
+- created_at
+- updated_at
+
+### 10.3 sites
 
 站点配置表。
 
 - id
+- customer_id
+- default_tenant_id
 - name
 - domain
 - widget_name
@@ -546,11 +574,13 @@ MVP 推荐 PostgreSQL + pgvector。
 - created_at
 - updated_at
 
-### 10.2 knowledge_sources
+### 10.4 knowledge_sources
 
 知识来源 URL 表。
 
 - id
+- customer_id
+- tenant_id
 - site_id
 - url
 - title
@@ -560,11 +590,13 @@ MVP 推荐 PostgreSQL + pgvector。
 - created_at
 - updated_at
 
-### 10.3 knowledge_chunks
+### 10.5 knowledge_chunks
 
 知识切块表。
 
 - id
+- customer_id
+- tenant_id
 - site_id
 - source_id
 - url
@@ -577,11 +609,13 @@ MVP 推荐 PostgreSQL + pgvector。
 - created_at
 - updated_at
 
-### 10.4 conversations
+### 10.6 conversations
 
 会话表。
 
 - id
+- customer_id
+- tenant_id
 - site_id
 - visitor_id
 - page_url
@@ -595,11 +629,14 @@ MVP 推荐 PostgreSQL + pgvector。
 - created_at
 - updated_at
 
-### 10.5 messages
+### 10.7 messages
 
 消息表。
 
 - id
+- customer_id
+- tenant_id
+- site_id
 - conversation_id
 - role
 - content
@@ -608,11 +645,13 @@ MVP 推荐 PostgreSQL + pgvector。
 - model
 - created_at
 
-### 10.6 leads
+### 10.8 leads
 
 线索表。
 
 - id
+- customer_id
+- tenant_id
 - site_id
 - conversation_id
 - name
@@ -630,7 +669,7 @@ MVP 推荐 PostgreSQL + pgvector。
 - form_submit_status
 - created_at
 
-### 10.7 widget_settings
+### 10.9 widget_settings
 
 插件配置表，也可合并进 sites。
 
@@ -643,12 +682,13 @@ MVP 推荐 PostgreSQL + pgvector。
 - created_at
 - updated_at
 
-### 10.8 page_visit_events
+### 10.10 page_visit_events
 
 页面访问事件表，后续用于沟通意图分析。
 
 - id
 - customer_id
+- tenant_id
 - site_id
 - visitor_id
 - conversation_id
@@ -665,7 +705,7 @@ MVP 推荐 PostgreSQL + pgvector。
 
 说明：MVP 可先只在 `conversations` 中保存 `page_url` 和 `referrer`。当需要更准确的沟通意图分析时，再新增 `page_visit_events` 记录完整访问轨迹。
 
-### 10.9 integrations
+### 10.11 integrations
 
 客户级外部系统集成配置表，后续用于 CRM、日程和表单对接。
 
@@ -688,12 +728,13 @@ MVP 推荐 PostgreSQL + pgvector。
 - form
 - webhook
 
-### 10.10 lead_sync_jobs
+### 10.12 lead_sync_jobs
 
 线索同步任务表，后续用于记录每条线索向外部系统同步的状态。
 
 - id
 - customer_id
+- tenant_id
 - site_id
 - lead_id
 - integration_id
@@ -711,11 +752,11 @@ MVP 推荐 PostgreSQL + pgvector。
 
 ### 11.1 Widget API
 
-- `GET /api/widget/config?siteId=xxx`
-  - 获取插件配置。
+- `GET /api/widget/config?siteId=xxx&tenantId=xxx`
+  - 获取插件配置；`tenantId` 可选，缺省时使用站点默认租户。
 
 - `POST /api/conversations`
-  - 创建或恢复会话。
+  - 创建或恢复会话，写入当前 `tenant_id`。
 
 - `POST /api/conversations/:id/messages`
   - 发送用户问题并返回 AI 回复。
