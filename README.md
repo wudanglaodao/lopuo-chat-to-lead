@@ -88,6 +88,23 @@ ALLOW_FAKE_LLM=true
 
 Widget 使用 iframe 隔离样式，打开时会自动调整尺寸。
 
+## 代码仓库
+
+GitHub 仓库：
+
+```text
+ssh://git@ssh.github.com:443/wudanglaodao/lopuo-chat-to-lead.git
+```
+
+本项目固定使用 `wudanglaodao` 账号对应的 SSH key。当前本机项目配置应保持为：
+
+```bash
+git remote set-url origin ssh://git@ssh.github.com:443/wudanglaodao/lopuo-chat-to-lead.git
+git config core.sshCommand "ssh -i ~/.ssh/id_ed25519_wudanglaodao -o IdentitiesOnly=yes"
+```
+
+不要改回默认 `github.com` host 或默认 SSH key，否则可能会误用其他 GitHub 身份。
+
 ## 验证
 
 ```bash
