@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lopuo AI 客服系统 MVP
 
-## Getting Started
+一个 Next.js 全栈端到端 Demo，用于在官网右下角嵌入 AI 客服助手。当前版本包含：
 
-First, run the development server:
+- 官网 Widget 与 Demo 页面
+- 后台登录、总览、知识库、会话、设置
+- PostgreSQL + pgvector 数据模型
+- 官网 URL 抓取、正文清洗、切块、Embedding 入库
+- RAG 检索 + DeepSeek 问答
+- Harmless 安全策略：低置信不强答、敏感商务问题转人工、客户数据隔离
+
+## 本地启动
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问：
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- 首页：`http://localhost:3000`
+- Widget Demo：`http://localhost:3000/demo`
+- 后台：`http://localhost:3000/admin`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+没有配置数据库时会进入本地演示模式，后台可用下面账号登录；演示模式下设置和知识库不会持久化。
 
-## Learn More
+```text
+admin@example.com
+change-me
+```
 
-To learn more about Next.js, take a look at the following resources:
+入口样式可直接用 URL 预览：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+http://localhost:3000/demo?style=pill&text=与%20AI%20聊天
+http://localhost:3000/demo?style=vertical
+http://localhost:3000/demo?style=mascot
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 数据库初始化
 
-## Deploy on Vercel
+需要 PostgreSQL，并启用 `pgvector`。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run db:migrate
+npm run db:seed
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`db:seed` 会创建默认客户、默认站点、后台管理员和第二个测试客户。默认站点 ID 是：
+
+```text
+11111111-1111-4111-8111-111111111111
+```
+
+## 环境变量
+
+关键变量见 `.env.example`：
+
+- `DATABASE_URL`
+- `AUTH_SECRET`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `DEEPSEEK_API_KEY`
+- `DEEPSEEK_MODEL`
+- `EMBEDDING_API_BASE_URL`
+- `EMBEDDING_API_KEY`
+- `EMBEDDING_MODEL`
+
+开发环境如果没有模型 Key，可以保留：
+
+```text
+ALLOW_FAKE_EMBEDDINGS=true
+ALLOW_FAKE_LLM=true
+```
+
+这样可以先验证流程；生产环境应配置真实 DeepSeek 与 Embedding Provider。
+
+## 嵌入官网
+
+```html
+<script
+  src="https://your-domain.com/widget.js"
+  data-site-id="11111111-1111-4111-8111-111111111111">
+</script>
+```
+
+Widget 使用 iframe 隔离样式，打开时会自动调整尺寸。
+
+## 验证
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+## 文档
+
+- [PRD](./docs/ai-customer-service-prd.md)
+- [Harmless 安全策略](./docs/ai-customer-service-harmless-policy.md)
+- [客户独立服务计划](./docs/customer-dedicated-service-plan.md)
