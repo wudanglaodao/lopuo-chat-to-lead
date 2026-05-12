@@ -8,7 +8,7 @@ export default function HomePage() {
           <div className="text-sm font-medium text-emerald-700">Lopuo AI Customer Service</div>
           <h1 className="mt-4 text-5xl font-semibold tracking-tight">官网 AI 客服端到端 Demo</h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-600">
-            一个 Next.js 全栈 MVP：支持客户隔离、官网知识库同步、RAG 检索、DeepSeek 问答、右下角 Widget 和后台管理。
+            一个 Next.js 全栈 MVP：支持客户隔离、官网知识库同步、RAG 检索、大模型问答、右下角 Widget 和后台管理。
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/demo" className="rounded-md bg-stone-950 px-5 py-3 text-sm font-medium text-white">
@@ -21,7 +21,7 @@ export default function HomePage() {
         </div>
         <div className="mt-16 grid gap-4 md:grid-cols-3">
           {[
-            ["客户隔离", "从第一版开始所有数据带 customer_id/site_id。"],
+            ["单客户优先", "先服务 lopuo.work，数据结构保留 customer_id/site_id。"],
             ["RAG 问答", "官网 URL 抓取、清洗、切块、向量化和来源追踪。"],
             ["Harmless", "低置信不强答，敏感商务问题转人工留资。"],
           ].map(([title, body]) => (

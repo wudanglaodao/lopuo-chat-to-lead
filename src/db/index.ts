@@ -27,4 +27,15 @@ export function getDb() {
   return db;
 }
 
+export async function closeDb() {
+  if (!client) {
+    return;
+  }
+
+  const activeClient = client;
+  client = null;
+  db = null;
+  await activeClient.end({ timeout: 5 });
+}
+
 export * from "./schema";

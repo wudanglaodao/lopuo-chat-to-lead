@@ -1,9 +1,12 @@
-import "dotenv/config";
+import { config } from "dotenv";
 
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import postgres from "postgres";
+
+config({ path: ".env.local" });
+config();
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -11,7 +14,7 @@ async function main() {
     throw new Error("DATABASE_URL is required.");
   }
 
-  const sql = postgres(databaseUrl, { max: 1 });
+  const sql = postgres(databaseUrl, { max: 1, prepare: false });
   await sql`
     CREATE TABLE IF NOT EXISTS app_migrations (
       name text PRIMARY KEY,

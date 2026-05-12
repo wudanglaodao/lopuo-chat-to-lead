@@ -1,8 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import { getDb, knowledgeChunks, messages, sites, type KnowledgeSourceHit } from "@/db";
+import { buildSystemPrompt, generateChatAnswer, getChatModel, type ChatMessage } from "@/lib/ai/chat";
 import { embedText } from "@/lib/ai/embeddings";
-import { buildSystemPrompt, generateDeepSeekAnswer, type ChatMessage } from "@/lib/ai/deepseek";
 import {
   buildLowConfidenceMessage,
   buildRefusalMessage,
@@ -50,7 +50,7 @@ export async function answerQuestion({
       answer: buildRefusalMessage(),
       sources: [],
       isMiss: true,
-      model: site.deepseekModel || process.env.DEEPSEEK_MODEL || "deepseek-chat",
+      model: getChatModel(site.deepseekModel),
       latencyMs: Date.now() - startedAt,
     };
   }
@@ -60,7 +60,7 @@ export async function answerQuestion({
       answer: buildSensitiveBusinessMessage(),
       sources: [],
       isMiss: true,
-      model: site.deepseekModel || process.env.DEEPSEEK_MODEL || "deepseek-chat",
+      model: getChatModel(site.deepseekModel),
       latencyMs: Date.now() - startedAt,
     };
   }
@@ -73,7 +73,7 @@ export async function answerQuestion({
       answer: buildLowConfidenceMessage(),
       sources,
       isMiss: true,
-      model: site.deepseekModel || process.env.DEEPSEEK_MODEL || "deepseek-chat",
+      model: getChatModel(site.deepseekModel),
       latencyMs: Date.now() - startedAt,
     };
   }
@@ -105,7 +105,7 @@ export async function answerQuestion({
     { role: "user", content: question },
   ];
 
-  const answer = await generateDeepSeekAnswer({
+  const answer = await generateChatAnswer({
     messages: chatMessages,
     model: site.deepseekModel,
   });
@@ -114,7 +114,7 @@ export async function answerQuestion({
     answer,
     sources,
     isMiss: false,
-    model: site.deepseekModel || process.env.DEEPSEEK_MODEL || "deepseek-chat",
+    model: getChatModel(site.deepseekModel),
     latencyMs: Date.now() - startedAt,
   };
 }

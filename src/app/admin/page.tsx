@@ -33,7 +33,7 @@ export default async function AdminHomePage() {
                 站点 ID：<span className="font-mono text-xs">{session.siteId}</span>
               </div>
             </div>
-            <div className="rounded-[18px] bg-[#f6f6f7] px-4 py-3 dark:bg-white/8">域名：localhost:3000</div>
+            <div className="rounded-[18px] bg-[#f6f6f7] px-4 py-3 dark:bg-white/8">域名：lopuo.work</div>
             <div className="rounded-[18px] bg-[#f6f6f7] px-4 py-3 dark:bg-white/8">Widget 名称：{site.widgetName}</div>
             <div className="rounded-[18px] bg-[#f6f6f7] px-4 py-3 dark:bg-white/8">入口样式：{site.launcherStyle}</div>
             <div className="rounded-[18px] bg-[#f6f6f7] px-4 py-3 dark:bg-white/8">入口文案：{site.launcherText}</div>

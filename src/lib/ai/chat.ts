@@ -1,43 +1,45 @@
 import { BASE_SYSTEM_PROMPT } from "@/lib/defaults";
 
+const DEFAULT_CHAT_MODEL = "mimo-v2.5";
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
 };
 
-type DeepSeekChoice = {
+type ChatChoice = {
   message?: {
     content?: string;
   };
 };
 
-type DeepSeekResponse = {
-  choices?: DeepSeekChoice[];
+type ChatResponse = {
+  choices?: ChatChoice[];
 };
 
-export function getDeepSeekModel(siteModel?: string | null) {
-  return siteModel || process.env.DEEPSEEK_MODEL || "deepseek-chat";
+export function getChatModel(siteModel?: string | null) {
+  return siteModel || process.env.LLM_MODEL || process.env.DEEPSEEK_MODEL || DEFAULT_CHAT_MODEL;
 }
 
-export async function generateDeepSeekAnswer({
+export async function generateChatAnswer({
   messages,
   model,
 }: {
   messages: ChatMessage[];
   model?: string | null;
 }) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  const selectedModel = getDeepSeekModel(model);
+  const apiKey = process.env.LLM_API_KEY || process.env.DEEPSEEK_API_KEY;
+  const selectedModel = getChatModel(model);
 
   if (!apiKey) {
     if (process.env.NODE_ENV !== "production" && process.env.ALLOW_FAKE_LLM !== "false") {
       return fakeAnswer(messages);
     }
 
-    throw new Error("DEEPSEEK_API_KEY is required.");
+    throw new Error("LLM_API_KEY is required.");
   }
 
-  const baseUrl = process.env.DEEPSEEK_API_BASE_URL || "https://api.deepseek.com/v1";
+  const baseUrl = getChatBaseUrl();
   const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: {
@@ -52,14 +54,14 @@ export async function generateDeepSeekAnswer({
   });
 
   if (!response.ok) {
-    throw new Error(`DeepSeek request failed: ${response.status} ${await response.text()}`);
+    throw new Error(`Chat provider request failed: ${response.status} ${await response.text()}`);
   }
 
-  const payload = (await response.json()) as DeepSeekResponse;
+  const payload = (await response.json()) as ChatResponse;
   const content = payload.choices?.[0]?.message?.content?.trim();
 
   if (!content) {
-    throw new Error("DeepSeek returned an empty answer.");
+    throw new Error("Chat provider returned an empty answer.");
   }
 
   return content;
@@ -79,6 +81,18 @@ export function buildSystemPrompt({
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+function getChatBaseUrl() {
+  if (process.env.LLM_API_BASE_URL) {
+    return process.env.LLM_API_BASE_URL;
+  }
+
+  if (process.env.DEEPSEEK_API_KEY) {
+    return process.env.DEEPSEEK_API_BASE_URL || "https://api.deepseek.com/v1";
+  }
+
+  throw new Error("LLM_API_BASE_URL is required.");
 }
 
 function fakeAnswer(messages: ChatMessage[]) {

@@ -60,6 +60,6 @@ export function buildDemoAssistantMessage(message: string) {
     "",
     `关于「${message.slice(0, 80)}」，AI 助理会先基于客户官网知识库整理答案；如果问题涉及报价、合同或交付承诺，会引导留下联系方式由同事跟进。`,
     "",
-    "配置数据库、知识库和模型 Key 后，这里会切换为真实 RAG + DeepSeek 回复。",
+    "配置数据库、知识库和模型 Key 后，这里会切换为真实 RAG + 大模型回复。",
   ].join("\n");
 }

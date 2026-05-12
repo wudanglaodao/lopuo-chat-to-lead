@@ -1,12 +1,12 @@
 # Lopuo AI 客服系统 MVP
 
-一个 Next.js 全栈端到端 Demo，用于在官网右下角嵌入 AI 客服助手。当前版本包含：
+一个 Next.js 全栈端到端 Demo，用于在官网右下角嵌入 AI 客服助手。当前版本先按单客户运营配置，数据表仍保留 `customer_id/site_id`，方便后续扩展客户隔离。当前版本包含：
 
 - 官网 Widget 与 Demo 页面
 - 后台登录、总览、知识库、会话、设置
 - PostgreSQL + pgvector 数据模型
 - 官网 URL 抓取、正文清洗、切块、Embedding 入库
-- RAG 检索 + DeepSeek 问答
+- RAG 检索 + OpenAI-compatible 大模型问答，前期默认支持小米 `mimo-v2.5`
 - Harmless 安全策略：低置信不强答、敏感商务问题转人工、客户数据隔离
 
 ## 本地启动
@@ -47,7 +47,7 @@ npm run db:migrate
 npm run db:seed
 ```
 
-`db:seed` 会创建默认客户、默认站点、后台管理员和第二个测试客户。默认站点 ID 是：
+`db:seed` 会创建一个默认客户、一个默认站点和一个后台管理员。默认站点 ID 是：
 
 ```text
 11111111-1111-4111-8111-111111111111
@@ -61,8 +61,9 @@ npm run db:seed
 - `AUTH_SECRET`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
-- `DEEPSEEK_API_KEY`
-- `DEEPSEEK_MODEL`
+- `LLM_API_KEY`
+- `LLM_API_BASE_URL`
+- `LLM_MODEL`
 - `EMBEDDING_API_BASE_URL`
 - `EMBEDDING_API_KEY`
 - `EMBEDDING_MODEL`
@@ -74,13 +75,13 @@ ALLOW_FAKE_EMBEDDINGS=true
 ALLOW_FAKE_LLM=true
 ```
 
-这样可以先验证流程；生产环境应配置真实 DeepSeek 与 Embedding Provider。
+这样可以先验证流程；生产环境应配置真实 Chat Provider 与 Embedding Provider。
 
 ## 嵌入官网
 
 ```html
 <script
-  src="https://your-domain.com/widget.js"
+  src="https://lopuo.work/widget.js"
   data-site-id="11111111-1111-4111-8111-111111111111">
 </script>
 ```

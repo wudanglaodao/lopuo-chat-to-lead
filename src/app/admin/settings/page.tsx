@@ -17,8 +17,8 @@ export default async function SettingsPage() {
         id: session.siteId,
         customerId: session.customerId,
         name: "演示站点",
-        domain: "localhost:3000",
-        allowedOrigins: ["localhost:3000", "127.0.0.1:3000"],
+        domain: "lopuo.work",
+        allowedOrigins: ["lopuo.work", "localhost:3000", "127.0.0.1:3000"],
         systemPrompt: "",
         deepseekModel: "",
         embeddingModel: "",
@@ -85,7 +85,7 @@ export default async function SettingsPage() {
             defaultValue={site.launcherBadgeText || ""}
             placeholder="例如 1、NEW、!"
           />
-          <Field label="DeepSeek 模型" name="deepseekModel" defaultValue={site.deepseekModel || ""} placeholder="默认使用环境变量" />
+          <Field label="对话模型" name="deepseekModel" defaultValue={site.deepseekModel || ""} placeholder="默认使用 LLM_MODEL" />
           <Field label="Embedding 模型" name="embeddingModel" defaultValue={site.embeddingModel || ""} placeholder="默认使用环境变量" />
         </div>
         <TextArea label="欢迎语" name="welcomeMessage" defaultValue={site.welcomeMessage} rows={4} />
