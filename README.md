@@ -37,6 +37,7 @@ change-me
 http://localhost:3000/demo?style=pill&text=与%20AI%20聊天
 http://localhost:3000/demo?style=vertical
 http://localhost:3000/demo?style=mascot
+http://localhost:3000/demo?style=vertical&bottomOffset=80
 ```
 
 ## 数据库初始化
@@ -90,11 +91,12 @@ ALLOW_FAKE_LLM=true
 <script
   src="https://lopuo.work/widget.js"
   data-site-id="11111111-1111-4111-8111-111111111111"
-  data-tenant-id="22222222-2222-4222-8222-222222222222">
+  data-tenant-id="22222222-2222-4222-8222-222222222222"
+  data-launcher-bottom-offset="20">
 </script>
 ```
 
-Widget 使用 iframe 隔离样式，打开时会自动调整尺寸。`data-tenant-id` 可省略，省略时使用站点默认租户；如果同一个企业要在不同页面接入不同知识库，可以为不同入口指定不同租户 ID。
+Widget 使用 iframe 隔离样式，打开时会自动调整尺寸。`data-tenant-id` 可省略，省略时使用站点默认租户；如果同一个企业要在不同页面接入不同知识库，可以为不同入口指定不同租户 ID。`data-launcher-bottom-offset` 可配置入口和桌面弹窗距离页面底部的像素值，默认 `20`。
 
 ## 代码仓库
 

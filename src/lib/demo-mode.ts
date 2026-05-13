@@ -11,8 +11,9 @@ import {
   buildSensitiveBusinessMessage,
   isSensitiveBusinessQuestion,
 } from "@/lib/safety";
+import { DEFAULT_WIDGET_LOGO_TEXT, DEFAULT_WIDGET_LOGO_TYPE, DEFAULT_WIDGET_LOGO_URL } from "@/lib/widget-brand";
 import { normalizeWidgetLocale } from "@/lib/widget-i18n";
-import { normalizeLauncherPosition } from "@/lib/widget-launcher";
+import { normalizeLauncherBottomOffset, normalizeLauncherPosition } from "@/lib/widget-launcher";
 
 export const DEMO_SITE_ID = "11111111-1111-4111-8111-111111111111";
 export const DEMO_CUSTOMER_ID = "00000000-0000-0000-0000-000000000001";
@@ -27,11 +28,13 @@ export function getDemoWidgetConfig({
   previewStyle,
   previewText,
   previewPosition,
+  previewBottomOffset,
 }: {
   siteId?: string;
   previewStyle?: string | null;
   previewText?: string | null;
   previewPosition?: string | null;
+  previewBottomOffset?: string | number | null;
 } = {}) {
   const launcherStyle = ["pill", "vertical", "mascot"].includes(previewStyle || "")
     ? (previewStyle as "pill" | "vertical" | "mascot")
@@ -42,9 +45,13 @@ export function getDemoWidgetConfig({
     tenantId: DEMO_TENANT_ID,
     customerId: DEMO_CUSTOMER_ID,
     widgetName: "AI 营销助手",
+    widgetLogoType: DEFAULT_WIDGET_LOGO_TYPE,
+    widgetLogoUrl: DEFAULT_WIDGET_LOGO_URL,
+    widgetLogoText: DEFAULT_WIDGET_LOGO_TEXT,
     launcherText: previewText || (launcherStyle === "pill" ? "获取方案" : "咨询方案"),
     launcherStyle,
     launcherPosition: normalizeLauncherPosition(previewPosition),
+    launcherBottomOffset: normalizeLauncherBottomOffset(previewBottomOffset),
     launcherImageUrl: "",
     launcherBadgeText: "1",
     launcherAnimation: "pulse",

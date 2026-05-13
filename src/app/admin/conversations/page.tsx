@@ -5,6 +5,7 @@ import Link from "next/link";
 import { conversations, leads, messages, tenants } from "@/db";
 import { getDb } from "@/db";
 import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
+import { formatAdminShortDateTime } from "@/lib/admin-time";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -204,13 +205,7 @@ function getPreview(conversation: ConversationRow) {
 
 function formatTime(value?: Date | string | null) {
   if (!value) return "刚刚";
-  const date = value instanceof Date ? value : new Date(value);
-  return date.toLocaleString("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatAdminShortDateTime(value);
 }
 
 async function getConversationListRows({

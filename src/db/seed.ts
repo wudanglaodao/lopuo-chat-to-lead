@@ -12,6 +12,7 @@ import {
   DEFAULT_WELCOME_MESSAGE,
   DEFAULT_WELCOME_TITLE,
 } from "@/lib/defaults";
+import { DEFAULT_WIDGET_LOGO_TEXT, DEFAULT_WIDGET_LOGO_TYPE, DEFAULT_WIDGET_LOGO_URL } from "@/lib/widget-brand";
 
 config({ path: ".env.local" });
 config();
@@ -69,9 +70,13 @@ async function main() {
       name: process.env.DEFAULT_SITE_NAME || "Lopuo Signal 官网",
       domain: DEFAULT_SITE_DOMAIN,
       widgetName: process.env.DEFAULT_WIDGET_NAME || "AI 营销助手",
+      widgetLogoType: DEFAULT_WIDGET_LOGO_TYPE,
+      widgetLogoUrl: DEFAULT_WIDGET_LOGO_URL,
+      widgetLogoText: DEFAULT_WIDGET_LOGO_TEXT,
       launcherText: "咨询方案",
       launcherStyle: "vertical",
       launcherPosition: "bottom-right",
+      launcherBottomOffset: 20,
       launcherBadgeText: "1",
       launcherAnimation: "pulse",
       welcomeTitle: DEFAULT_WELCOME_TITLE,
@@ -87,9 +92,13 @@ async function main() {
       set: {
         defaultTenantId: activeTenantId,
         widgetName: process.env.DEFAULT_WIDGET_NAME || "AI 营销助手",
+        widgetLogoType: DEFAULT_WIDGET_LOGO_TYPE,
+        widgetLogoUrl: DEFAULT_WIDGET_LOGO_URL,
+        widgetLogoText: DEFAULT_WIDGET_LOGO_TEXT,
         launcherText: "咨询方案",
         launcherStyle: "vertical",
         launcherPosition: "bottom-right",
+        launcherBottomOffset: 20,
         launcherBadgeText: "1",
         launcherAnimation: "pulse",
         welcomeTitle: DEFAULT_WELCOME_TITLE,

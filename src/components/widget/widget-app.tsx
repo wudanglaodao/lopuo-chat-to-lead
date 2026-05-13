@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Bot, Check, Copy, MessageCircle, Send, Sparkles, X } from "lucide-react";
+import { Bell, Bot, Check, Copy, ExternalLink, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -9,15 +9,32 @@ import {
   localizeDefaultWidgetCopy,
   resolveWidgetLocale,
 } from "@/lib/widget-i18n";
-import { isLauncherPosition, type LauncherPosition, normalizeLauncherPosition } from "@/lib/widget-launcher";
+import {
+  DEFAULT_WIDGET_LOGO_TEXT,
+  DEFAULT_WIDGET_LOGO_TYPE,
+  DEFAULT_WIDGET_LOGO_URL,
+  normalizeWidgetLogoText,
+  normalizeWidgetLogoType,
+  type WidgetLogoType,
+} from "@/lib/widget-brand";
+import {
+  isLauncherPosition,
+  normalizeLauncherBottomOffset,
+  type LauncherPosition,
+  normalizeLauncherPosition,
+} from "@/lib/widget-launcher";
 
 type WidgetConfig = {
   siteId: string;
   tenantId?: string | null;
   widgetName: string;
+  widgetLogoType: WidgetLogoType;
+  widgetLogoUrl?: string | null;
+  widgetLogoText: string;
   launcherText: string;
   launcherStyle: "pill" | "vertical" | "mascot";
   launcherPosition: LauncherPosition;
+  launcherBottomOffset: number;
   launcherImageUrl?: string | null;
   launcherBadgeText?: string | null;
   launcherAnimation: "none" | "pulse" | "bounce" | "float";
@@ -59,6 +76,7 @@ export function WidgetApp({
   previewStyle,
   previewText,
   previewPosition,
+  previewBottomOffset,
 }: {
   siteId: string;
   tenantId?: string;
@@ -66,6 +84,7 @@ export function WidgetApp({
   previewStyle?: string;
   previewText?: string;
   previewPosition?: string;
+  previewBottomOffset?: string;
 }) {
   const [config, setConfig] = useState<WidgetConfig | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -78,8 +97,12 @@ export function WidgetApp({
   const [leadSaved, setLeadSaved] = useState(false);
   const previewLauncherStyle = normalizeLauncherStyle(previewStyle);
   const previewLauncherPosition = isLauncherPosition(previewPosition) ? previewPosition : "";
+  const previewLauncherBottomOffset = hasExplicitValue(previewBottomOffset)
+    ? normalizeLauncherBottomOffset(previewBottomOffset)
+    : null;
   const launcherStyle = previewLauncherStyle || config?.launcherStyle;
   const launcherPosition = previewLauncherPosition || normalizeLauncherPosition(config?.launcherPosition);
+  const launcherBottomOffset = previewLauncherBottomOffset ?? normalizeLauncherBottomOffset(config?.launcherBottomOffset);
 
   const visitorId = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -133,10 +156,11 @@ export function WidgetApp({
         open: isOpen,
         launcherStyle: launcherStyle || "vertical",
         launcherPosition,
+        launcherBottomOffset,
       },
       "*",
     );
-  }, [isOpen, launcherPosition, launcherStyle]);
+  }, [isOpen, launcherBottomOffset, launcherPosition, launcherStyle]);
 
   useEffect(() => {
     if (!siteId) {
@@ -150,6 +174,7 @@ export function WidgetApp({
       previewStyle: previewStyle || "",
       previewText: previewText || "",
       previewPosition: previewPosition || "",
+      previewBottomOffset: previewBottomOffset || "",
     });
 
     fetch(`/api/widget/config?${params.toString()}`)
@@ -159,7 +184,7 @@ export function WidgetApp({
       })
       .then(setConfig)
       .catch((err: Error) => setError(err.message));
-  }, [siteId, tenantId, requestedLocale, previewStyle, previewText, previewPosition, uiText.configLoadFailed]);
+  }, [siteId, tenantId, requestedLocale, previewStyle, previewText, previewPosition, previewBottomOffset, uiText.configLoadFailed]);
 
   const ensureConversation = useCallback(async () => {
     if (conversationId) {
@@ -279,7 +304,6 @@ export function WidgetApp({
   }
 
   const themeColor = config?.themeColor || "#16a34a";
-  const logoUrl = "https://www.lopuo.com/wp-content/themes/lopuo-theme/assets/img/lopuo-logo-black.svg?ver=0.8.14";
   const welcomeMessage = localizedCopy.welcomeMessage;
   const suggestedQuestions = localizedCopy.suggestedQuestions;
 
@@ -311,8 +335,12 @@ export function WidgetApp({
         <header className="relative border-b border-black/[0.06] bg-white/45 px-4 pb-3 pt-3 backdrop-blur">
           <div className="flex h-12 items-center justify-between">
             <div className="flex h-11 min-w-0 items-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt="Lopuo" className="h-5 w-auto max-w-[120px] object-contain" />
+              <WidgetHeaderBrand
+                logoType={config?.widgetLogoType}
+                logoUrl={config?.widgetLogoUrl}
+                logoText={config?.widgetLogoText}
+                fallbackText={localizedCopy.widgetName}
+              />
             </div>
             <button
               type="button"
@@ -665,6 +693,48 @@ function normalizeLauncherStyle(style?: string | null): WidgetConfig["launcherSt
   return style === "pill" || style === "vertical" || style === "mascot" ? style : "";
 }
 
+function hasExplicitValue(value?: string | null) {
+  return value !== undefined && value !== null && value.trim() !== "";
+}
+
+function WidgetHeaderBrand({
+  logoType,
+  logoUrl,
+  logoText,
+  fallbackText,
+}: {
+  logoType?: WidgetLogoType | string | null;
+  logoUrl?: string | null;
+  logoText?: string | null;
+  fallbackText: string;
+}) {
+  const normalizedLogoType = normalizeWidgetLogoType(logoType || DEFAULT_WIDGET_LOGO_TYPE);
+  const normalizedLogoUrl = (logoUrl || "").trim() || DEFAULT_WIDGET_LOGO_URL;
+  const normalizedLogoText = normalizeWidgetLogoText(logoText || fallbackText || DEFAULT_WIDGET_LOGO_TEXT);
+  const [failedLogoUrl, setFailedLogoUrl] = useState("");
+  const logoFailed = failedLogoUrl === normalizedLogoUrl;
+
+  if (normalizedLogoType === "image" && !logoFailed) {
+    return (
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={normalizedLogoUrl}
+          alt={normalizedLogoText}
+          onError={() => setFailedLogoUrl(normalizedLogoUrl)}
+          className="h-6 max-h-7 w-auto max-w-[150px] object-contain"
+        />
+      </>
+    );
+  }
+
+  return (
+    <span className="max-w-[180px] truncate text-xl font-bold leading-none text-[#17191d]">
+      {normalizedLogoText}
+    </span>
+  );
+}
+
 function MessageContent({
   content,
   role,
@@ -777,6 +847,8 @@ type ContactTokenMatch = {
   start: number;
   end: number;
   value: string;
+  displayValue?: string;
+  href?: string;
 };
 
 function renderInlineMarkdown(text: string, keyPrefix: string, themeColor: string) {
@@ -809,8 +881,10 @@ function renderTextWithContactTokens(text: string, keyPrefix: string, themeColor
 
     nodes.push(
       <ContactCopyToken
-        key={`${keyPrefix}-contact-${index}-${match.value}`}
+        key={`${keyPrefix}-contact-${index}-${match.start}-${match.value}`}
         value={match.value}
+        displayValue={match.displayValue}
+        href={match.href}
         themeColor={themeColor}
       />,
     );
@@ -826,36 +900,77 @@ function renderTextWithContactTokens(text: string, keyPrefix: string, themeColor
 
 function findContactTokenMatches(text: string) {
   const matches: ContactTokenMatch[] = [];
-  const addMatch = (start: number, end: number, value: string) => {
-    const normalizedValue = value.trim().replace(/[),.;，。；、]+$/g, "");
+  const addMatch = (
+    start: number,
+    end: number,
+    value: string,
+    options: { displayValue?: string; href?: string; label?: string; replaceFullMatch?: boolean } = {},
+  ) => {
+    const normalizedValue = trimInlineToken(value);
     const trimStartOffset = value.indexOf(normalizedValue);
     if (!normalizedValue || normalizedValue.length < 3) {
       return;
     }
 
+    const normalizedStart = options.replaceFullMatch ? start : start + Math.max(0, trimStartOffset);
+    const normalizedEnd = options.replaceFullMatch ? end : normalizedStart + normalizedValue.length;
+    const href = options.href || getInteractiveHref(normalizedValue, options.label);
+
     matches.push({
-      start: start + Math.max(0, trimStartOffset),
-      end: start + Math.max(0, trimStartOffset) + normalizedValue.length,
+      start: normalizedStart,
+      end: normalizedEnd,
       value: normalizedValue,
+      displayValue: options.displayValue,
+      href,
     });
   };
+
+  for (const match of text.matchAll(/\[([^\]]{1,160})\]\(((?:https?:\/\/|www\.)[^\s)]+)\)/gi)) {
+    const label = stripMarkdown(match[1] || "").trim();
+    const url = match[2] || "";
+    addMatch(match.index ?? 0, (match.index ?? 0) + match[0].length, url, {
+      displayValue: label || url,
+      href: normalizeHref(url),
+      replaceFullMatch: true,
+    });
+  }
+
+  for (const match of text.matchAll(/\b(?:https?:\/\/|www\.)[^\s<>"'`]+/gi)) {
+    const value = match[0] || "";
+    addMatch(match.index ?? 0, (match.index ?? 0) + value.length, value, {
+      href: normalizeHref(value),
+    });
+  }
+
+  for (const match of text.matchAll(/(?<![@\w.-])(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"'`]*)?/gi)) {
+    const value = match[0] || "";
+    addMatch(match.index ?? 0, (match.index ?? 0) + value.length, value, {
+      href: normalizeHref(value),
+    });
+  }
 
   const labeledContactPattern =
     /((?:WeChat\s*ID|WeChat|微信号|微信|WX|WhatsApp|Line|Email|E-mail|邮箱|电话|手机)\s*(?:账号|号码|号|ID)?\s*(?:is|为|是|:|：)?\s*)([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|[A-Z][-_A-Z0-9]{4,31}|\+?\d[\d\s().-]{6,}\d)/gi;
   for (const match of text.matchAll(labeledContactPattern)) {
     const prefix = match[1] || "";
     const value = match[2] || "";
-    addMatch((match.index ?? 0) + prefix.length, (match.index ?? 0) + prefix.length + value.length, value);
+    addMatch((match.index ?? 0) + prefix.length, (match.index ?? 0) + prefix.length + value.length, value, {
+      label: prefix,
+    });
   }
 
   for (const match of text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)) {
-    addMatch(match.index ?? 0, (match.index ?? 0) + match[0].length, match[0]);
+    addMatch(match.index ?? 0, (match.index ?? 0) + match[0].length, match[0], {
+      href: `mailto:${match[0]}`,
+    });
   }
 
   for (const match of text.matchAll(/(?<![\w+])\+?\d[\d\s().-]{6,}\d(?!\w)/g)) {
     const digits = match[0].replace(/\D/g, "");
     if (digits.length >= 7) {
-      addMatch(match.index ?? 0, (match.index ?? 0) + match[0].length, match[0]);
+      addMatch(match.index ?? 0, (match.index ?? 0) + match[0].length, match[0], {
+        href: `tel:${match[0].replace(/[^\d+]/g, "")}`,
+      });
     }
   }
 
@@ -878,12 +993,17 @@ function dedupeContactTokenMatches(matches: ContactTokenMatch[]) {
 
 function ContactCopyToken({
   value,
+  displayValue,
+  href,
   themeColor,
 }: {
   value: string;
+  displayValue?: string;
+  href?: string;
   themeColor: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const label = displayValue || value;
 
   async function copyValue() {
     try {
@@ -903,7 +1023,20 @@ function ContactCopyToken({
         color: themeColor,
       }}
     >
-      <span className="min-w-0 select-all truncate">{value}</span>
+      {href ? (
+        <a
+          href={href}
+          target={shouldOpenInNewTab(href) ? "_blank" : undefined}
+          rel={shouldOpenInNewTab(href) ? "noreferrer" : undefined}
+          className="inline-flex min-w-0 max-w-[210px] items-center gap-1.5 rounded-full px-0.5 transition hover:underline"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <span className="min-w-0 truncate">{label}</span>
+          <ExternalLink className="h-3 w-3 shrink-0" />
+        </a>
+      ) : (
+        <span className="min-w-0 select-all truncate">{label}</span>
+      )}
       <button
         type="button"
         aria-label={`复制 ${value}`}
@@ -918,6 +1051,40 @@ function ContactCopyToken({
       </button>
     </span>
   );
+}
+
+function trimInlineToken(value: string) {
+  return value.trim().replace(/[)\].,;，。；、!?！？]+$/g, "");
+}
+
+function normalizeHref(value: string) {
+  const normalized = trimInlineToken(value);
+  if (!normalized) return "";
+  return /^https?:\/\//i.test(normalized) ? normalized : `https://${normalized}`;
+}
+
+function getInteractiveHref(value: string, label = "") {
+  if (/^https?:\/\//i.test(value) || /^www\./i.test(value)) {
+    return normalizeHref(value);
+  }
+
+  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value)) {
+    return `mailto:${value}`;
+  }
+
+  const digits = value.replace(/\D/g, "");
+  if (digits.length >= 7) {
+    if (/whatsapp/i.test(label)) {
+      return `https://wa.me/${digits}`;
+    }
+    return `tel:${value.replace(/[^\d+]/g, "")}`;
+  }
+
+  return "";
+}
+
+function shouldOpenInNewTab(href: string) {
+  return /^https?:\/\//i.test(href);
 }
 
 async function copyToClipboard(value: string) {

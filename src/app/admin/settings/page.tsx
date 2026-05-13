@@ -10,13 +10,23 @@ import { AI_TONE_PRESETS, DEFAULT_AI_TONE, DEFAULT_BUSINESS_FLOW, DEFAULT_TONE_K
 import { isDemoMode } from "@/lib/demo-mode";
 import { absoluteUrl } from "@/lib/utils";
 import {
+  DEFAULT_WIDGET_LOGO_TEXT,
+  DEFAULT_WIDGET_LOGO_URL,
+  normalizeWidgetLogoText,
+  normalizeWidgetLogoType,
+} from "@/lib/widget-brand";
+import {
   DEFAULT_WIDGET_LOCALE,
   SUPPORTED_WIDGET_LOCALES,
   WIDGET_LOCALE_LABELS,
   normalizeEnabledLocales,
   normalizeWidgetLocale,
 } from "@/lib/widget-i18n";
-import { normalizeLauncherPosition } from "@/lib/widget-launcher";
+import {
+  MAX_LAUNCHER_BOTTOM_OFFSET,
+  normalizeLauncherBottomOffset,
+  normalizeLauncherPosition,
+} from "@/lib/widget-launcher";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +42,11 @@ const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
 const launcherPositionOptions: Array<[string, string]> = [
   ["bottom-right", "右下角：默认停靠位置"],
   ["bottom-left", "左下角：避开右侧悬浮元素"],
+];
+
+const widgetLogoTypeOptions: Array<[string, string]> = [
+  ["image", "图片 Logo"],
+  ["text", "文本"],
 ];
 
 export default async function SettingsPage({
@@ -51,11 +66,14 @@ export default async function SettingsPage({
     requestedTenantId: params.tenantId,
   });
   const embedBaseUrl = getEmbedBaseUrl(site.domain);
-  const embedCode = `<script src="${embedBaseUrl}/widget.js" data-site-id="${site.id}"></script>`;
   const allowedOrigins = Array.from(new Set([site.domain, `www.${site.domain.replace(/^www\./, "")}`, ...site.allowedOrigins])).join("\n");
   const defaultLocale = normalizeWidgetLocale(site.defaultLocale) || DEFAULT_WIDGET_LOCALE;
   const enabledLocales = normalizeEnabledLocales(site.enabledLocales || [], defaultLocale);
   const launcherPosition = normalizeLauncherPosition(site.launcherPosition);
+  const launcherBottomOffset = normalizeLauncherBottomOffset(site.launcherBottomOffset);
+  const widgetLogoType = normalizeWidgetLogoType(site.widgetLogoType);
+  const widgetLogoText = normalizeWidgetLogoText(site.widgetLogoText || site.widgetName || DEFAULT_WIDGET_LOGO_TEXT);
+  const embedCode = `<script src="${embedBaseUrl}/widget.js" data-site-id="${site.id}" data-launcher-bottom-offset="${launcherBottomOffset}"></script>`;
 
   return (
     <AdminShell
@@ -133,6 +151,25 @@ export default async function SettingsPage({
                 <SettingsSection accent="#ffb48b" title="入口样式" description="控制官网入口的文字、样式、位置、头像、主题色和动效。">
                   <div className="grid gap-5 md:grid-cols-2">
                     <Field label="助手名称" name="widgetName" defaultValue={site.widgetName} />
+                    <Select
+                      label="弹窗头部品牌"
+                      name="widgetLogoType"
+                      defaultValue={widgetLogoType}
+                      options={widgetLogoTypeOptions}
+                    />
+                    <Field
+                      label="头部 Logo 图片 URL"
+                      name="widgetLogoUrl"
+                      type="url"
+                      defaultValue={site.widgetLogoUrl || DEFAULT_WIDGET_LOGO_URL}
+                      placeholder="https://example.com/logo.svg"
+                    />
+                    <Field
+                      label="头部品牌文本"
+                      name="widgetLogoText"
+                      defaultValue={widgetLogoText}
+                      placeholder="Lopuo"
+                    />
                     <Field label="入口文案" name="launcherText" defaultValue={site.launcherText} />
                     <Field label="主题色" name="themeColor" defaultValue={site.themeColor} />
                     <Select
@@ -168,7 +205,7 @@ export default async function SettingsPage({
                     <div className="mb-4">
                       <h3 className="text-base font-bold text-[#1f2024] dark:text-white">位置设置</h3>
                       <p className="mt-1 text-sm font-semibold text-[#777e89] dark:text-white/55">
-                        选择入口在访客页面的停靠方向；手机打开对话时仍会铺满屏幕。
+                        选择入口在访客页面的停靠方向和距离底部的高度；手机打开对话时仍会铺满屏幕。
                       </p>
                     </div>
                     <div className="grid gap-5 md:grid-cols-2">
@@ -178,14 +215,24 @@ export default async function SettingsPage({
                         defaultValue={launcherPosition}
                         options={launcherPositionOptions}
                       />
+                      <Field
+                        label="距离底部（px）"
+                        name="launcherBottomOffset"
+                        type="number"
+                        min={0}
+                        max={MAX_LAUNCHER_BOTTOM_OFFSET}
+                        step={1}
+                        defaultValue={String(launcherBottomOffset)}
+                        placeholder="20"
+                      />
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    <PreviewLink href={`/demo?style=pill&text=获取方案&position=${launcherPosition}`}>胶囊入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=vertical&position=${launcherPosition}`}>竖向入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=mascot&position=${launcherPosition}`}>吉祥物入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-left`}>左下位置预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-right`}>右下位置预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=pill&text=获取方案&position=${launcherPosition}&bottomOffset=${launcherBottomOffset}`}>胶囊入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=vertical&position=${launcherPosition}&bottomOffset=${launcherBottomOffset}`}>竖向入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=mascot&position=${launcherPosition}&bottomOffset=${launcherBottomOffset}`}>吉祥物入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-left&bottomOffset=${launcherBottomOffset}`}>左下位置预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-right&bottomOffset=${launcherBottomOffset}`}>右下位置预览</PreviewLink>
                   </div>
                 </SettingsSection>
                 <SaveBar />
@@ -202,7 +249,7 @@ export default async function SettingsPage({
                       <code>{embedCode}</code>
                     </pre>
                     <p className="mt-3 text-sm font-semibold leading-6 text-[#777e89] dark:text-white/55">
-                      建议放在官网全站模板的 <code className="rounded bg-[#fff1e8] px-1 dark:bg-white/10">{"</body>"}</code> 前，脚本会自动创建右下角客服入口。
+                      建议放在官网全站模板的 <code className="rounded bg-[#fff1e8] px-1 dark:bg-white/10">{"</body>"}</code> 前，脚本会按配置创建客服入口。
                     </p>
                   </div>
                   <TextArea label="允许嵌入域名，每行一个" name="allowedOrigins" defaultValue={allowedOrigins} rows={4} />
@@ -252,6 +299,7 @@ export default async function SettingsPage({
             siteDomain={site.domain}
             launcherStyle={site.launcherStyle || "vertical"}
             launcherPosition={launcherPosition}
+            launcherBottomOffset={launcherBottomOffset}
           />
         </div>
       </div>
@@ -290,14 +338,17 @@ function PreviewAside({
   siteDomain,
   launcherStyle,
   launcherPosition,
+  launcherBottomOffset,
 }: {
   siteId: string;
   siteDomain: string;
   launcherStyle: string;
   launcherPosition: string;
+  launcherBottomOffset: number;
 }) {
   const currentStyle = ["pill", "vertical", "mascot"].includes(launcherStyle) ? launcherStyle : "vertical";
   const currentPosition = normalizeLauncherPosition(launcherPosition);
+  const currentBottomOffset = normalizeLauncherBottomOffset(launcherBottomOffset);
 
   return (
     <aside className="xl:sticky xl:top-28 xl:self-start">
@@ -316,7 +367,7 @@ function PreviewAside({
           </div>
         </div>
         <a
-          href={`/demo?style=${currentStyle}&position=${currentPosition}`}
+          href={`/demo?style=${currentStyle}&position=${currentPosition}&bottomOffset=${currentBottomOffset}`}
           target="_blank"
           rel="noreferrer"
           className="mt-4 inline-flex w-full items-center justify-center rounded-[16px] bg-[#2f7df6] px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(47,125,246,0.2)] transition hover:-translate-y-0.5 hover:bg-[#1d6ef0]"
@@ -324,13 +375,13 @@ function PreviewAside({
           打开当前预览
         </a>
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <MiniPreviewLink href={`/demo?style=pill&text=获取方案&position=${currentPosition}`}>胶囊</MiniPreviewLink>
-          <MiniPreviewLink href={`/demo?style=vertical&position=${currentPosition}`}>竖向</MiniPreviewLink>
-          <MiniPreviewLink href={`/demo?style=mascot&position=${currentPosition}`}>头像</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=pill&text=获取方案&position=${currentPosition}&bottomOffset=${currentBottomOffset}`}>胶囊</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=vertical&position=${currentPosition}&bottomOffset=${currentBottomOffset}`}>竖向</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=mascot&position=${currentPosition}&bottomOffset=${currentBottomOffset}`}>头像</MiniPreviewLink>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-right`}>右下</MiniPreviewLink>
-          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-left`}>左下</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-right&bottomOffset=${currentBottomOffset}`}>右下</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-left&bottomOffset=${currentBottomOffset}`}>左下</MiniPreviewLink>
         </div>
       </div>
     </aside>
@@ -406,19 +457,31 @@ function Field({
   name,
   defaultValue,
   placeholder,
+  type = "text",
+  min,
+  max,
+  step,
 }: {
   label: string;
   name: string;
   defaultValue: string;
   placeholder?: string;
+  type?: "text" | "number" | "url";
+  min?: number;
+  max?: number;
+  step?: number;
 }) {
   return (
     <label className="block">
       <span className="text-sm font-bold text-[#777e89] dark:text-white/60">{label}</span>
       <input
+        type={type}
         name={name}
         defaultValue={defaultValue}
         placeholder={placeholder}
+        min={min}
+        max={max}
+        step={step}
         className="mt-2 w-full rounded-[18px] border border-black/[0.06] bg-[#f5f5f6] px-4 py-3 text-sm font-semibold text-[#1f2024] outline-none transition placeholder:text-[#a8adb6] focus:border-[#2f7df6]/40 focus:bg-white focus:shadow-[0_12px_28px_rgba(47,125,246,0.12)] dark:border-white/10 dark:bg-white/8 dark:text-white dark:placeholder:text-white/30 dark:focus:border-[#2f7df6]/60 dark:focus:bg-white/12"
       />
     </label>

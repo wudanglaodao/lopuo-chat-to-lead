@@ -14,6 +14,7 @@ import Link from "next/link";
 import { conversations, getDb, leads, tenants } from "@/db";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
+import { formatAdminShortDateTime } from "@/lib/admin-time";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 
@@ -306,13 +307,7 @@ function TenantPill({ name }: { name: string }) {
 
 function formatTime(value?: Date | string | null) {
   if (!value) return "未记录";
-  const date = value instanceof Date ? value : new Date(value);
-  return date.toLocaleString("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatAdminShortDateTime(value);
 }
 
 function getDemoLeadRows(): LeadListRow[] {

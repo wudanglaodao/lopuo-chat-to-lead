@@ -17,6 +17,7 @@ import { getDb } from "@/db";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ConversationDeleteForm } from "@/components/admin/conversation-delete-form";
 import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
+import { formatAdminDateTime } from "@/lib/admin-time";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 
@@ -334,13 +335,7 @@ function maskVisitorId(value: string) {
 
 function formatDate(value?: Date) {
   if (!value) return "未记录";
-  return value.toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatAdminDateTime(value, { second: undefined });
 }
 
 async function getConversationDetail({

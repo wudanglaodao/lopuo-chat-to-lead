@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
         previewStyle: request.nextUrl.searchParams.get("previewStyle"),
         previewText: request.nextUrl.searchParams.get("previewText"),
         previewPosition: request.nextUrl.searchParams.get("previewPosition"),
+        previewBottomOffset: request.nextUrl.searchParams.get("previewBottomOffset"),
       }),
     );
   }
@@ -56,9 +57,13 @@ export async function GET(request: NextRequest) {
     tenantId,
     customerId: site.customerId,
     widgetName: site.widgetName,
+    widgetLogoType: site.widgetLogoType,
+    widgetLogoUrl: site.widgetLogoUrl,
+    widgetLogoText: site.widgetLogoText,
     launcherText: site.launcherText,
     launcherStyle: site.launcherStyle,
     launcherPosition: site.launcherPosition,
+    launcherBottomOffset: site.launcherBottomOffset,
     launcherImageUrl: site.launcherImageUrl,
     launcherBadgeText: site.launcherBadgeText,
     launcherAnimation: site.launcherAnimation,

@@ -3,6 +3,7 @@ import { Info } from "lucide-react";
 
 import { addKnowledgeSourceAction } from "@/app/admin/actions";
 import { getDb, knowledgeChunks, knowledgeSources } from "@/db";
+import { formatAdminDateTime } from "@/lib/admin-time";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -15,6 +16,9 @@ type KnowledgeSourceWithStats = typeof knowledgeSources.$inferSelect & {
   chunkCount: number;
   pageCount: number;
 };
+
+const STALE_SYNCING_MINUTES = 30;
+const STALE_SYNCING_MS = STALE_SYNCING_MINUTES * 60 * 1000;
 
 export default async function KnowledgePage({
   searchParams,
@@ -86,26 +90,30 @@ export default async function KnowledgePage({
           <div />
           <div />
         </div>
-        {sources.map((source) => (
-          <div
-            key={source.id}
-            className="grid grid-cols-[1fr_120px_180px_48px_120px] gap-4 border-b border-black/[0.04] px-5 py-4 text-sm last:border-0 dark:border-white/10"
-          >
-            <div className="min-w-0">
-              <div className="truncate font-bold text-[#1f2024] dark:text-white">{source.title || source.url}</div>
-              <div className="mt-1 truncate text-xs font-semibold text-[#9aa0aa]">{source.url}</div>
-              {source.lastError ? <div className="mt-2 text-xs font-semibold text-[#ff5a4f]">{source.lastError}</div> : null}
+        {sources.map((source) => {
+          const displayStatus = getDisplayStatus(source);
+
+          return (
+            <div
+              key={source.id}
+              className="grid grid-cols-[1fr_120px_180px_48px_120px] gap-4 border-b border-black/[0.04] px-5 py-4 text-sm last:border-0 dark:border-white/10"
+            >
+              <div className="min-w-0">
+                <div className="truncate font-bold text-[#1f2024] dark:text-white">{source.title || source.url}</div>
+                <div className="mt-1 truncate text-xs font-semibold text-[#9aa0aa]">{source.url}</div>
+                {source.lastError ? <div className="mt-2 text-xs font-semibold text-[#ff5a4f]">{source.lastError}</div> : null}
+              </div>
+              <div>
+                <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${getStatusTone(displayStatus)}`}>{displayStatus}</span>
+              </div>
+              <div className="text-xs font-semibold leading-5 text-[#777e89]">
+                {formatSyncTime(source)}
+              </div>
+              <SyncResultHint source={source} />
+              <KnowledgeSyncForm sourceId={source.id} />
             </div>
-            <div>
-              <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${getStatusTone(source.status)}`}>{source.status}</span>
-            </div>
-            <div className="text-xs font-semibold leading-5 text-[#777e89]">
-              {formatSyncTime(source)}
-            </div>
-            <SyncResultHint source={source} />
-            <KnowledgeSyncForm sourceId={source.id} />
-          </div>
-        ))}
+          );
+        })}
         {sources.length === 0 ? (
           <div className="px-4 py-14 text-center text-sm font-semibold text-[#9aa0aa] dark:text-white/45">还没有添加知识来源。</div>
         ) : null}
@@ -176,22 +184,40 @@ async function getKnowledgeSourcesWithStats({
 
 function getStatusTone(status: string) {
   if (status === "failed") return "bg-[#ffe8e5] text-[#ff5a4f] dark:bg-[#ff5a4f]/18 dark:text-[#ff9a92]";
+  if (status === "stalled") return "bg-[#fff4df] text-[#9b5a17] dark:bg-[#ffb48b]/16 dark:text-[#ffd2b7]";
   if (status === "syncing") return "bg-[#e8f1ff] text-[#2f7df6] dark:bg-[#2f7df6]/18 dark:text-[#8bbcff]";
   if (status === "pending") return "bg-[#fff4df] text-[#9b5a17] dark:bg-[#ffb48b]/16 dark:text-[#ffd2b7]";
   return "bg-[#edf8e8] text-[#6bb956] dark:bg-[#6bb956]/18 dark:text-[#a5dd95]";
 }
 
+function getDisplayStatus(source: Pick<KnowledgeSourceWithStats, "status" | "updatedAt">) {
+  if (source.status === "syncing" && isStaleSyncing(source.updatedAt)) {
+    return "stalled";
+  }
+
+  return source.status;
+}
+
+function isStaleSyncing(updatedAt?: Date | null) {
+  if (!updatedAt) {
+    return false;
+  }
+
+  return Date.now() - updatedAt.getTime() > STALE_SYNCING_MS;
+}
+
 function formatSyncTime(source: { lastSyncedAt?: Date | null }) {
   if (source.lastSyncedAt) {
-    return source.lastSyncedAt.toLocaleString("zh-CN");
+    return formatAdminDateTime(source.lastSyncedAt);
   }
 
   return "尚未同步";
 }
 
 function SyncResultHint({ source }: { source: KnowledgeSourceWithStats }) {
-  const tone = getResultHintTone(source.status);
-  const result = getSyncResultSummary(source);
+  const displayStatus = getDisplayStatus(source);
+  const tone = getResultHintTone(displayStatus);
+  const result = getSyncResultSummary(source, displayStatus);
   const title = result.lines.join("\n");
 
   return (
@@ -234,6 +260,13 @@ function getResultHintTone(status: string) {
     };
   }
 
+  if (status === "stalled") {
+    return {
+      button: "border-[#ffb48b]/30 bg-[#fff4df] text-[#9b5a17] hover:border-[#ffb48b]/60 dark:border-[#ffb48b]/25 dark:bg-[#ffb48b]/16 dark:text-[#ffd2b7]",
+      badge: "bg-[#fff4df] text-[#9b5a17] dark:bg-[#ffb48b]/16 dark:text-[#ffd2b7]",
+    };
+  }
+
   if (status === "pending") {
     return {
       button: "border-[#ffb48b]/30 bg-[#fff4df] text-[#9b5a17] hover:border-[#ffb48b]/60 dark:border-[#ffb48b]/25 dark:bg-[#ffb48b]/16 dark:text-[#ffd2b7]",
@@ -247,9 +280,9 @@ function getResultHintTone(status: string) {
   };
 }
 
-function getSyncResultSummary(source: KnowledgeSourceWithStats) {
-  const syncedAt = source.lastSyncedAt ? source.lastSyncedAt.toLocaleString("zh-CN") : "";
-  const updatedAt = source.updatedAt ? source.updatedAt.toLocaleString("zh-CN") : "";
+function getSyncResultSummary(source: KnowledgeSourceWithStats, displayStatus = getDisplayStatus(source)) {
+  const syncedAt = source.lastSyncedAt ? formatAdminDateTime(source.lastSyncedAt) : "";
+  const updatedAt = source.updatedAt ? formatAdminDateTime(source.updatedAt) : "";
   const contentStats = `当前入库：${source.pageCount} 个页面 / ${source.chunkCount} 个切块`;
 
   if (source.status === "failed") {
@@ -264,7 +297,20 @@ function getSyncResultSummary(source: KnowledgeSourceWithStats) {
     };
   }
 
-  if (source.status === "syncing") {
+  if (displayStatus === "stalled") {
+    return {
+      label: "抓取可能中断",
+      lines: [
+        "抓取可能中断",
+        updatedAt ? `状态更新时间：${updatedAt}` : "状态更新时间：暂无",
+        `说明：超过 ${STALE_SYNCING_MINUTES} 分钟没有更新，可能是请求超时或服务重启。`,
+        syncedAt ? `最近成功：${syncedAt}` : "最近成功：暂无",
+        contentStats,
+      ],
+    };
+  }
+
+  if (displayStatus === "syncing") {
     return {
       label: "正在抓取",
       lines: [
@@ -276,7 +322,7 @@ function getSyncResultSummary(source: KnowledgeSourceWithStats) {
     };
   }
 
-  if (source.status === "pending") {
+  if (displayStatus === "pending") {
     return {
       label: "等待同步",
       lines: ["等待同步", "还没有执行数据抓取。", contentStats],
