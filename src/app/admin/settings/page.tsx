@@ -14,13 +14,12 @@ import { absoluteUrl } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type SettingsTab = "content" | "style" | "script" | "preview";
+type SettingsTab = "content" | "style" | "script";
 
 const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
   { id: "content", label: "对话内容", description: "欢迎语、推荐问题、留资" },
   { id: "style", label: "入口样式", description: "按钮、头像、主题色" },
   { id: "script", label: "脚本嵌入", description: "官网安装代码" },
-  { id: "preview", label: "Demo 预览", description: "新窗口查看效果" },
 ];
 
 export default async function SettingsPage({
@@ -99,132 +98,106 @@ export default async function SettingsPage({
     >
       {isDemoMode() ? (
         <div className="mb-5 rounded-[22px] border border-[#ffd6a5] bg-[#fff4df] p-4 text-sm font-semibold text-[#9b5a17] dark:border-[#ffb48b]/30 dark:bg-[#ffb48b]/14 dark:text-[#ffd2b7]">
-          当前为预览模式，表单可用于查看配置项；保存不会持久化。可通过 `/demo?style=pill`、`/demo?style=vertical`
-          或 `/demo?style=mascot` 快速预览不同入口样式。
+          当前为预览模式，表单可用于查看配置项；保存不会持久化。可通过右侧预览入口或样式区快捷按钮，新窗口检查不同入口样式。
         </div>
       ) : null}
 
       <div className="max-w-7xl space-y-6">
         <TabNav activeTab={activeTab} activeTenantId={activeTenant?.id} />
 
-        {activeTab === "content" ? (
-          <form action={updateSettingsAction} className="space-y-6">
-            <input type="hidden" name="settingsSection" value="content" />
-            <SettingsSection accent="#c7b6ff" title="对话内容" description="配置访客打开窗口后看到的欢迎语、推荐问题、语气流程和留资开关。">
-              <AiContentAssistant
-                defaultWelcomeTitle={site.welcomeTitle || DEFAULT_WELCOME_TITLE}
-                defaultWelcomeMessage={site.welcomeMessage}
-                defaultSuggestedQuestions={site.suggestedQuestions}
-                defaultAiTone={site.aiTone || DEFAULT_AI_TONE}
-                toneOptions={Object.entries(AI_TONE_PRESETS)}
-                defaultToneKeywords={site.toneKeywords?.length ? site.toneKeywords : DEFAULT_TONE_KEYWORDS}
-                defaultBusinessFlow={site.businessFlow || DEFAULT_BUSINESS_FLOW}
-              />
-              <div className="grid gap-3 md:grid-cols-2">
-                <Checkbox label="前台展示来源链接" name="showSources" defaultChecked={site.showSources} />
-                <Checkbox label="启用留资收集" name="collectLeadEnabled" defaultChecked={site.collectLeadEnabled} />
-              </div>
-            </SettingsSection>
-            <SaveBar />
-          </form>
-        ) : null}
-
-        {activeTab === "style" ? (
-          <form action={updateSettingsAction} className="space-y-6">
-            <input type="hidden" name="settingsSection" value="style" />
-            <SettingsSection accent="#ffb48b" title="入口样式" description="控制官网右下角入口的文字、样式、头像、主题色和动效。">
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field label="助手名称" name="widgetName" defaultValue={site.widgetName} />
-                <Field label="入口文案" name="launcherText" defaultValue={site.launcherText} />
-                <Field label="主题色" name="themeColor" defaultValue={site.themeColor} />
-                <Select
-                  label="入口样式"
-                  name="launcherStyle"
-                  defaultValue={site.launcherStyle}
-                  options={[
-                    ["pill", "胶囊入口：获取方案"],
-                    ["vertical", "竖向卡片：咨询方案"],
-                    ["mascot", "动漫头像：吉祥物角标"],
-                  ]}
-                />
-                <Select
-                  label="入口动效"
-                  name="launcherAnimation"
-                  defaultValue={site.launcherAnimation}
-                  options={[
-                    ["pulse", "呼吸光圈"],
-                    ["float", "轻微漂浮"],
-                    ["bounce", "轻弹提醒"],
-                    ["none", "无动效"],
-                  ]}
-                />
-                <Field
-                  label="动漫头像图片 URL"
-                  name="launcherImageUrl"
-                  defaultValue={site.launcherImageUrl || ""}
-                  placeholder="可选，不填则使用默认绿色吉祥物"
-                />
-                <Field label="角标文字" name="launcherBadgeText" defaultValue={site.launcherBadgeText || ""} placeholder="例如 1、NEW、!" />
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <PreviewLink href="/demo?style=pill&text=获取方案">胶囊入口预览</PreviewLink>
-                <PreviewLink href="/demo?style=vertical">竖向入口预览</PreviewLink>
-                <PreviewLink href="/demo?style=mascot">吉祥物入口预览</PreviewLink>
-              </div>
-            </SettingsSection>
-            <SaveBar />
-          </form>
-        ) : null}
-
-        {activeTab === "script" ? (
-          <form action={updateSettingsAction} className="space-y-6">
-            <input type="hidden" name="settingsSection" value="script" />
-            <SettingsSection accent="#9bdcff" title="脚本嵌入" description="复制脚本到官网底部，发布前确认允许嵌入域名包含正式域名。">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-[#777e89] dark:text-white/60">嵌入代码</div>
-                  <pre className="mt-2 max-w-full overflow-x-auto rounded-[18px] border border-[#9bdcff]/45 bg-[#f6fbff] p-4 text-sm font-semibold leading-6 text-[#1f2024] dark:border-[#9bdcff]/20 dark:bg-white/8 dark:text-white/80">
-                    <code>{embedCode}</code>
-                  </pre>
-                  <p className="mt-3 text-sm font-semibold leading-6 text-[#777e89] dark:text-white/55">
-                    建议放在官网全站模板的 <code className="rounded bg-[#fff1e8] px-1 dark:bg-white/10">{"</body>"}</code> 前，脚本会自动创建右下角客服入口。
-                  </p>
-                </div>
-                <div className="rounded-[22px] bg-[#f6f6f7] p-4 text-sm font-semibold text-[#5d646f] dark:bg-white/8 dark:text-white/65">
-                  <div className="text-[#1f2024] dark:text-white">当前站点</div>
-                  <div className="mt-3 space-y-2 break-all">
-                    <div>站点域名：{site.domain}</div>
-                    <div>
-                      站点 ID：<span className="font-mono text-xs">{site.id}</span>
-                    </div>
-                    <a href="/demo" className="inline-flex rounded-[14px] bg-[#2f7df6] px-4 py-2 text-white transition hover:-translate-y-0.5">
-                      打开本地预览
-                    </a>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="min-w-0">
+            {activeTab === "content" ? (
+              <form action={updateSettingsAction} className="space-y-6">
+                <input type="hidden" name="settingsSection" value="content" />
+                <SettingsSection accent="#c7b6ff" title="对话内容" description="配置访客打开窗口后看到的欢迎语、推荐问题、语气流程和留资开关。">
+                  <AiContentAssistant
+                    defaultWelcomeTitle={site.welcomeTitle || DEFAULT_WELCOME_TITLE}
+                    defaultWelcomeMessage={site.welcomeMessage}
+                    defaultSuggestedQuestions={site.suggestedQuestions}
+                    defaultAiTone={site.aiTone || DEFAULT_AI_TONE}
+                    toneOptions={Object.entries(AI_TONE_PRESETS)}
+                    defaultToneKeywords={site.toneKeywords?.length ? site.toneKeywords : DEFAULT_TONE_KEYWORDS}
+                    defaultBusinessFlow={site.businessFlow || DEFAULT_BUSINESS_FLOW}
+                  />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Checkbox label="前台展示来源链接" name="showSources" defaultChecked={site.showSources} />
+                    <Checkbox label="启用留资收集" name="collectLeadEnabled" defaultChecked={site.collectLeadEnabled} />
                   </div>
-                </div>
-              </div>
-              <TextArea label="允许嵌入域名，每行一个" name="allowedOrigins" defaultValue={allowedOrigins} rows={4} />
-            </SettingsSection>
-            <SaveBar />
-          </form>
-        ) : null}
+                </SettingsSection>
+                <SaveBar />
+              </form>
+            ) : null}
 
-        {activeTab === "preview" ? (
-          <SettingsSection accent="#d8c7ff" title="Demo 预览" description="在新窗口快速检查不同入口样式和前台对话效果。">
-            <div className="grid gap-4 md:grid-cols-3">
-              <PreviewCard href="/demo" title="默认预览" description="使用当前配置和默认入口样式打开预览页面。" />
-              <PreviewCard
-                href={`/demo?style=${site.launcherStyle || "vertical"}`}
-                title="当前入口样式"
-                description={`按当前设置的 ${site.launcherStyle || "vertical"} 样式预览。`}
-              />
-              <PreviewCard href="/demo?style=mascot" title="吉祥物样式" description="单独查看动漫头像入口和角标动效。" />
-            </div>
-            <div className="rounded-[22px] bg-[#f6f6f7] p-4 text-sm font-semibold leading-6 text-[#5d646f] dark:bg-white/8 dark:text-white/65">
-              预览页会读取当前站点配置，用来检查官网入口、欢迎语、推荐问题和留资表单是否符合预期。
-            </div>
-          </SettingsSection>
-        ) : null}
+            {activeTab === "style" ? (
+              <form action={updateSettingsAction} className="space-y-6">
+                <input type="hidden" name="settingsSection" value="style" />
+                <SettingsSection accent="#ffb48b" title="入口样式" description="控制官网右下角入口的文字、样式、头像、主题色和动效。">
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <Field label="助手名称" name="widgetName" defaultValue={site.widgetName} />
+                    <Field label="入口文案" name="launcherText" defaultValue={site.launcherText} />
+                    <Field label="主题色" name="themeColor" defaultValue={site.themeColor} />
+                    <Select
+                      label="入口样式"
+                      name="launcherStyle"
+                      defaultValue={site.launcherStyle}
+                      options={[
+                        ["pill", "胶囊入口：获取方案"],
+                        ["vertical", "竖向卡片：咨询方案"],
+                        ["mascot", "动漫头像：吉祥物角标"],
+                      ]}
+                    />
+                    <Select
+                      label="入口动效"
+                      name="launcherAnimation"
+                      defaultValue={site.launcherAnimation}
+                      options={[
+                        ["pulse", "呼吸光圈"],
+                        ["float", "轻微漂浮"],
+                        ["bounce", "轻弹提醒"],
+                        ["none", "无动效"],
+                      ]}
+                    />
+                    <Field
+                      label="动漫头像图片 URL"
+                      name="launcherImageUrl"
+                      defaultValue={site.launcherImageUrl || ""}
+                      placeholder="可选，不填则使用默认绿色吉祥物"
+                    />
+                    <Field label="角标文字" name="launcherBadgeText" defaultValue={site.launcherBadgeText || ""} placeholder="例如 1、NEW、!" />
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <PreviewLink href="/demo?style=pill&text=获取方案">胶囊入口预览</PreviewLink>
+                    <PreviewLink href="/demo?style=vertical">竖向入口预览</PreviewLink>
+                    <PreviewLink href="/demo?style=mascot">吉祥物入口预览</PreviewLink>
+                  </div>
+                </SettingsSection>
+                <SaveBar />
+              </form>
+            ) : null}
+
+            {activeTab === "script" ? (
+              <form action={updateSettingsAction} className="space-y-6">
+                <input type="hidden" name="settingsSection" value="script" />
+                <SettingsSection accent="#9bdcff" title="脚本嵌入" description="复制脚本到官网底部，发布前确认允许嵌入域名包含正式域名。">
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-[#777e89] dark:text-white/60">嵌入代码</div>
+                    <pre className="mt-2 max-w-full overflow-x-auto rounded-[18px] border border-[#9bdcff]/45 bg-[#f6fbff] p-4 text-sm font-semibold leading-6 text-[#1f2024] dark:border-[#9bdcff]/20 dark:bg-white/8 dark:text-white/80">
+                      <code>{embedCode}</code>
+                    </pre>
+                    <p className="mt-3 text-sm font-semibold leading-6 text-[#777e89] dark:text-white/55">
+                      建议放在官网全站模板的 <code className="rounded bg-[#fff1e8] px-1 dark:bg-white/10">{"</body>"}</code> 前，脚本会自动创建右下角客服入口。
+                    </p>
+                  </div>
+                  <TextArea label="允许嵌入域名，每行一个" name="allowedOrigins" defaultValue={allowedOrigins} rows={4} />
+                </SettingsSection>
+                <SaveBar />
+              </form>
+            ) : null}
+          </div>
+
+          <PreviewAside siteId={site.id} siteDomain={site.domain} launcherStyle={site.launcherStyle || "vertical"} />
+        </div>
       </div>
     </AdminShell>
   );
@@ -253,6 +226,51 @@ function TabNav({ activeTab, activeTenantId }: { activeTab: SettingsTab; activeT
         );
       })}
     </div>
+  );
+}
+
+function PreviewAside({
+  siteId,
+  siteDomain,
+  launcherStyle,
+}: {
+  siteId: string;
+  siteDomain: string;
+  launcherStyle: string;
+}) {
+  const currentStyle = ["pill", "vertical", "mascot"].includes(launcherStyle) ? launcherStyle : "vertical";
+
+  return (
+    <aside className="xl:sticky xl:top-28 xl:self-start">
+      <div className="rounded-[24px] border border-black/[0.06] bg-white p-4 shadow-[0_18px_42px_rgba(31,32,36,0.06)] dark:border-white/10 dark:bg-[#171a20] dark:shadow-none">
+        <div className="flex items-center gap-3">
+          <span className="h-9 w-1.5 rounded-full bg-[#9bdcff]" />
+          <div>
+            <div className="text-base font-bold text-[#1f2024] dark:text-white">效果预览</div>
+            <div className="mt-0.5 text-xs font-semibold text-[#777e89]">新窗口查看当前样式</div>
+          </div>
+        </div>
+        <div className="mt-4 rounded-[18px] bg-[#f6f6f7] p-3 text-xs font-semibold leading-5 text-[#5d646f] dark:bg-white/8 dark:text-white/60">
+          <div>站点域名：{siteDomain}</div>
+          <div className="mt-1 break-all">
+            站点 ID：<span className="font-mono">{siteId}</span>
+          </div>
+        </div>
+        <a
+          href={`/demo?style=${currentStyle}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex w-full items-center justify-center rounded-[16px] bg-[#2f7df6] px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(47,125,246,0.2)] transition hover:-translate-y-0.5 hover:bg-[#1d6ef0]"
+        >
+          打开当前预览
+        </a>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <MiniPreviewLink href="/demo?style=pill&text=获取方案">胶囊</MiniPreviewLink>
+          <MiniPreviewLink href="/demo?style=vertical">竖向</MiniPreviewLink>
+          <MiniPreviewLink href="/demo?style=mascot">头像</MiniPreviewLink>
+        </div>
+      </div>
+    </aside>
   );
 }
 
@@ -358,6 +376,7 @@ function PreviewLink({ href, children }: { href: string; children: React.ReactNo
     <a
       href={href}
       target="_blank"
+      rel="noreferrer"
       className="rounded-[16px] bg-[#f6f6f7] px-4 py-2 text-sm font-bold text-[#5d646f] transition hover:-translate-y-0.5 hover:bg-white hover:text-[#2f7df6] hover:shadow-[0_12px_28px_rgba(47,125,246,0.12)] dark:bg-white/8 dark:text-white/65 dark:hover:bg-white/12 dark:hover:text-white"
     >
       {children}
@@ -365,18 +384,15 @@ function PreviewLink({ href, children }: { href: string; children: React.ReactNo
   );
 }
 
-function PreviewCard({ href, title, description }: { href: string; title: string; description: string }) {
+function MiniPreviewLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <a
       href={href}
       target="_blank"
-      className="group rounded-[22px] border border-black/[0.06] bg-[#f6f6f7] p-5 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_42px_rgba(47,125,246,0.12)] dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12"
+      rel="noreferrer"
+      className="rounded-[12px] bg-[#f6f6f7] px-2 py-2 text-center text-xs font-bold text-[#777e89] transition hover:bg-white hover:text-[#2f7df6] dark:bg-white/8 dark:text-white/55 dark:hover:bg-white/12 dark:hover:text-white"
     >
-      <span className="inline-flex rounded-[14px] bg-[#ff6b4a] px-3 py-1.5 text-xs font-bold text-white transition group-hover:bg-[#2f7df6] dark:bg-[#ff6b4a] dark:text-white">
-        打开预览
-      </span>
-      <h3 className="mt-4 text-lg font-bold text-[#1f2024] dark:text-white">{title}</h3>
-      <p className="mt-2 text-sm font-semibold leading-6 text-[#777e89] dark:text-white/55">{description}</p>
+      {children}
     </a>
   );
 }

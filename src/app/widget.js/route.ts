@@ -25,8 +25,8 @@ export function GET(request: NextRequest) {
   iframe.style.position = "fixed";
   iframe.style.right = "20px";
   iframe.style.bottom = "20px";
-  iframe.style.width = "136px";
-  iframe.style.height = "136px";
+  iframe.style.width = "96px";
+  iframe.style.height = "196px";
   iframe.style.border = "0";
   iframe.style.zIndex = "2147483647";
   iframe.style.colorScheme = "normal";
@@ -55,9 +55,9 @@ export function GET(request: NextRequest) {
     } else if (isOpen) {
       iframe.style.right = "24px";
       iframe.style.bottom = "24px";
-      iframe.style.width = "440px";
-      iframe.style.height = "680px";
-      iframe.style.borderRadius = "24px";
+      iframe.style.width = "400px";
+      iframe.style.height = "640px";
+      iframe.style.borderRadius = "0";
     } else {
       iframe.style.right = "20px";
       iframe.style.bottom = "20px";
@@ -72,8 +72,8 @@ export function GET(request: NextRequest) {
         iframe.style.width = "96px";
         iframe.style.height = "196px";
       } else {
-        iframe.style.width = "136px";
-        iframe.style.height = "136px";
+        iframe.style.width = "76px";
+        iframe.style.height = "76px";
       }
     }
   });

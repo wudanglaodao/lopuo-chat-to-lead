@@ -229,167 +229,180 @@ export function WidgetApp({
   }
 
   return (
-    <main className="flex h-[100dvh] flex-col overflow-hidden bg-[#f8fafc] text-[#17191d] shadow-[0_24px_80px_rgba(15,23,42,0.14)] ring-1 ring-black/[0.08]">
-      <header className="relative border-b border-black/[0.06] bg-[#f8fafc] px-4 pb-3 pt-3">
-        <div className="flex h-12 items-center justify-between">
-          <div className="flex h-11 min-w-0 items-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt="Lopuo" className="h-5 w-auto max-w-[120px] object-contain" />
-          </div>
-          <button
-            type="button"
-            aria-label="关闭客服窗口"
-            title="关闭"
-            onClick={() => setIsOpen(false)}
-            className="grid h-9 w-9 place-items-center rounded-full text-stone-400 transition hover:bg-white hover:text-stone-700"
-          >
-            <X className="h-[18px] w-[18px]" />
-          </button>
-        </div>
-        <div
-          className="mt-3 flex h-8 items-center justify-between rounded-full px-3 text-xs"
-          style={{
-            background: `color-mix(in srgb, ${themeColor} 12%, white)`,
-            color: themeColor,
-          }}
-        >
-          <span className="inline-flex min-w-0 items-center gap-2">
-            <Bell className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">可以直接提问，也可以留下联系方式</span>
-          </span>
-          <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-80" />
-        </div>
-      </header>
-
-      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <div className="space-y-4 pb-1">
-          <div className="flex items-center gap-3 px-3 py-1 text-[11px] text-stone-400">
-            <span className="h-px flex-1 bg-black/[0.08]" />
-            <span>{new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</span>
-            <span className="h-px flex-1 bg-black/[0.08]" />
-          </div>
-          <div className="flex items-start gap-2.5">
-            <span
-              className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-[0_4px_14px_rgba(15,23,42,0.06)] ring-1"
-              style={{
-                color: themeColor,
-                borderColor: `color-mix(in srgb, ${themeColor} 16%, transparent)`,
-              }}
+    <div className="flex h-[100dvh] w-full flex-col items-end justify-end bg-transparent text-[#17191d]">
+      <main className="mb-3 flex h-[calc(100dvh-68px)] min-h-0 w-full flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-[#f8fafc]">
+        <header className="relative border-b border-black/[0.06] bg-[#f8fafc] px-4 pb-3 pt-3">
+          <div className="flex h-12 items-center justify-between">
+            <div className="flex h-11 min-w-0 items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="Lopuo" className="h-5 w-auto max-w-[120px] object-contain" />
+            </div>
+            <button
+              type="button"
+              aria-label="关闭客服窗口"
+              title="关闭"
+              onClick={() => setIsOpen(false)}
+              className="grid h-8 w-8 place-items-center rounded-full text-stone-400 transition hover:bg-white hover:text-stone-700 hover:shadow-[0_6px_16px_rgba(15,23,42,0.08)]"
             >
-              <Bot className="h-4 w-4" />
-            </span>
-            <div className="max-w-[84%] rounded-2xl rounded-tl-sm border border-black/[0.07] bg-white px-4 py-3 text-sm text-stone-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-              <p className="whitespace-pre-wrap leading-6">{welcomeMessage}</p>
-            </div>
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          {suggestedQuestions.length > 0 ? (
-            <div className="ml-9 flex flex-wrap gap-2">
-              {suggestedQuestions.map((question) => (
-                <button
-                  type="button"
-                  key={question}
-                  onClick={() => sendMessage(question)}
-                  className="rounded-full border border-black/[0.06] bg-white px-3 py-2 text-left text-xs font-medium leading-4 text-stone-600 shadow-[0_4px_14px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:text-stone-950"
-                >
-                  {question}
-                </button>
-              ))}
+          <div
+            className="mt-3 flex h-8 items-center justify-between rounded-full px-3 text-xs"
+            style={{
+              background: `color-mix(in srgb, ${themeColor} 12%, white)`,
+              color: themeColor,
+            }}
+          >
+            <span className="inline-flex min-w-0 items-center gap-2">
+              <Bell className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">可以直接提问，也可以留下联系方式</span>
+            </span>
+            <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-80" />
+          </div>
+        </header>
+
+        <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <div className="space-y-4 pb-1">
+            <div className="flex items-center gap-3 px-3 py-1 text-[11px] text-stone-400">
+              <span className="h-px flex-1 bg-black/[0.08]" />
+              <span>{new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</span>
+              <span className="h-px flex-1 bg-black/[0.08]" />
             </div>
-          ) : null}
-          {messages.map((message) => (
-            <div key={message.id} className={message.role === "user" ? "flex justify-end" : "flex items-end gap-2"}>
-              {message.role === "assistant" ? (
-                <span
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-[0_4px_14px_rgba(15,23,42,0.06)] ring-1"
-                  style={{
-                    color: themeColor,
-                    borderColor: `color-mix(in srgb, ${themeColor} 16%, transparent)`,
-                  }}
-                >
-                  <Bot className="h-3.5 w-3.5" />
-                </span>
-              ) : null}
-              <div
-                className={
-                  message.role === "user"
-                    ? "max-w-[82%] rounded-2xl rounded-br-sm px-4 py-3 text-sm text-white shadow-[0_8px_20px_rgba(15,23,42,0.1)]"
-                    : "max-w-[84%] rounded-2xl rounded-tl-sm border border-black/[0.07] bg-white px-4 py-3 text-sm text-stone-800 shadow-[0_8px_20px_rgba(15,23,42,0.05)]"
-                }
-                style={message.role === "user" ? { background: themeColor } : undefined}
+            <div className="flex items-start gap-2.5">
+              <span
+                className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-[0_4px_14px_rgba(15,23,42,0.06)] ring-1"
+                style={{
+                  color: themeColor,
+                  borderColor: `color-mix(in srgb, ${themeColor} 16%, transparent)`,
+                }}
               >
-                <MessageContent content={message.content} role={message.role} themeColor={themeColor} />
-                {config?.showSources && message.sources && message.sources.length > 0 ? (
-                  <div className="mt-3 space-y-1 border-t border-stone-100 pt-2.5">
-                    {message.sources.slice(0, 3).map((source) => (
-                      <a
-                        key={source.id}
-                        href={source.url}
-                        target="_blank"
-                        className="block truncate text-xs font-medium"
-                        style={{ color: themeColor }}
-                      >
-                        来源：{source.title || source.url}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
+                <Bot className="h-4 w-4" />
+              </span>
+              <div className="max-w-[84%] rounded-2xl rounded-tl-sm border border-black/[0.07] bg-white px-4 py-3 text-sm text-stone-700 shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
+                <p className="whitespace-pre-wrap leading-6">{welcomeMessage}</p>
               </div>
             </div>
-          ))}
-          {config?.collectLeadEnabled && showLeadPrompt && !leadSaved ? (
-            <div className="flex items-end gap-2">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white ring-1 ring-black/10">
-                <MessageCircle className="h-3.5 w-3.5" style={{ color: themeColor }} />
-              </span>
-              <div className="max-w-[86%] rounded-[18px] border border-black/10 bg-white px-4 py-3 text-sm text-stone-800 shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
-                <div className="whitespace-pre-wrap leading-6">
-                  如果您希望顾问进一步沟通，也可以把联系方式和大致需求发给我。
-                  {"\n"}不方便也没关系，我们可以先继续聊。
+            {suggestedQuestions.length > 0 ? (
+              <div className="ml-9 flex flex-wrap gap-2">
+                {suggestedQuestions.map((question) => (
+                  <button
+                    type="button"
+                    key={question}
+                    onClick={() => sendMessage(question)}
+                    className="rounded-full border border-black/[0.06] bg-white px-3 py-2 text-left text-xs font-medium leading-4 text-stone-600 shadow-[0_4px_14px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:text-stone-950"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {messages.map((message) => (
+              <div key={message.id} className={message.role === "user" ? "flex justify-end" : "flex items-end gap-2"}>
+                {message.role === "assistant" ? (
+                  <span
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-[0_4px_14px_rgba(15,23,42,0.06)] ring-1"
+                    style={{
+                      color: themeColor,
+                      borderColor: `color-mix(in srgb, ${themeColor} 16%, transparent)`,
+                    }}
+                  >
+                    <Bot className="h-3.5 w-3.5" />
+                  </span>
+                ) : null}
+                <div
+                  className={
+                    message.role === "user"
+                      ? "max-w-[82%] rounded-2xl rounded-br-sm px-4 py-3 text-sm text-white shadow-[0_8px_18px_rgba(15,23,42,0.09)]"
+                      : "max-w-[84%] rounded-2xl rounded-tl-sm border border-black/[0.07] bg-white px-4 py-3 text-sm text-stone-800 shadow-[0_8px_18px_rgba(15,23,42,0.06)]"
+                  }
+                  style={message.role === "user" ? { background: themeColor } : undefined}
+                >
+                  <MessageContent content={message.content} role={message.role} themeColor={themeColor} />
+                  {config?.showSources && message.sources && message.sources.length > 0 ? (
+                    <div className="mt-3 space-y-1 border-t border-stone-100 pt-2.5">
+                      {message.sources.slice(0, 3).map((source) => (
+                        <a
+                          key={source.id}
+                          href={source.url}
+                          target="_blank"
+                          className="block truncate text-xs font-medium"
+                          style={{ color: themeColor }}
+                        >
+                          来源：{source.title || source.url}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
-            </div>
-          ) : null}
-          {error || !siteId ? (
-            <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error || "缺少 siteId，请检查嵌入代码。"}
-            </div>
-          ) : null}
-        </div>
-      </section>
+            ))}
+            {config?.collectLeadEnabled && showLeadPrompt && !leadSaved ? (
+              <div className="flex items-end gap-2">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white ring-1 ring-black/10">
+                  <MessageCircle className="h-3.5 w-3.5" style={{ color: themeColor }} />
+                </span>
+                <div className="max-w-[86%] rounded-[18px] border border-black/10 bg-white px-4 py-3 text-sm text-stone-800 shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
+                  <div className="whitespace-pre-wrap leading-6">
+                    如果您希望顾问进一步沟通，也可以把联系方式和大致需求发给我。
+                    {"\n"}不方便也没关系，我们可以先继续聊。
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {error || !siteId ? (
+              <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error || "缺少 siteId，请检查嵌入代码。"}
+              </div>
+            ) : null}
+          </div>
+        </section>
 
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          sendMessage(input);
-        }}
-        className="bg-[#f8fafc] px-4 pb-4 pt-2"
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            sendMessage(input);
+          }}
+          className="bg-[#f8fafc] px-4 pb-4 pt-2"
+        >
+          <div className="flex items-end gap-2 rounded-[18px] border border-black/[0.08] bg-white px-4 py-2 shadow-[0_8px_18px_rgba(15,23,42,0.06)] transition focus-within:border-stone-300">
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  sendMessage(input);
+                }
+              }}
+              placeholder="说说你想了解的问题..."
+              rows={2}
+              className="max-h-20 min-h-8 flex-1 resize-none bg-transparent px-1 py-1 text-sm leading-6 outline-none placeholder:text-stone-400"
+            />
+            <button
+              type="submit"
+              aria-label="发送消息"
+              disabled={!input.trim() || isLoading}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ background: themeColor }}
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </form>
+      </main>
+      <button
+        type="button"
+        aria-label="关闭客服窗口"
+        title="关闭"
+        onClick={() => setIsOpen(false)}
+        className="relative grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-white text-white shadow-[0_12px_28px_rgba(15,23,42,0.18),0_0_0_8px_rgba(47,125,246,0.08)] ring-1 ring-black/[0.06] transition hover:scale-[1.04]"
       >
-        <div className="flex items-end gap-2 rounded-[18px] border border-black/[0.08] bg-white px-4 py-2 shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition focus-within:border-stone-300">
-          <textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage(input);
-              }
-            }}
-            placeholder="说说你想了解的问题..."
-            rows={2}
-            className="max-h-20 min-h-8 flex-1 resize-none bg-transparent px-1 py-1 text-sm leading-6 outline-none placeholder:text-stone-400"
-          />
-          <button
-            type="submit"
-            aria-label="发送消息"
-            disabled={!input.trim() || isLoading}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
-            style={{ background: themeColor }}
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
-      </form>
-    </main>
+        <span className="grid h-10 w-10 place-items-center rounded-full" style={{ background: themeColor }}>
+          <X className="h-5 w-5" />
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -511,12 +524,12 @@ function LauncherButton({
       <button
         type="button"
         onClick={onOpen}
-        className={`fixed bottom-4 right-4 grid h-28 w-28 place-items-center rounded-full border border-white/80 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.1)] transition duration-200 hover:scale-[1.02] ${animationClass}`}
+        className={`fixed bottom-2 right-2 grid h-[52px] w-[52px] place-items-center rounded-full border border-white/90 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.14)] transition duration-200 hover:scale-[1.04] ${animationClass}`}
       >
         <PulseRing enabled={animation === "pulse"} color={themeColor} rounded="999px" />
         <MascotAvatar imageUrl={config?.launcherImageUrl} color={themeColor} />
         {config?.launcherBadgeText ? (
-          <span className="absolute right-2 top-2 grid min-h-7 min-w-7 place-items-center rounded-full bg-rose-500 px-2 text-sm font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
             {config.launcherBadgeText}
           </span>
         ) : null}
@@ -723,24 +736,24 @@ function MascotAvatar({
   if (imageUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={imageUrl} alt="" className="h-24 w-24 rounded-full object-cover" />
+      <img src={imageUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
     );
   }
 
   return (
-    <span className="relative block h-24 w-24 overflow-hidden rounded-full bg-white">
+    <span className="relative block h-11 w-11 overflow-hidden rounded-full bg-white">
       <span
-        className="absolute bottom-1 left-1/2 h-[78px] w-[68px] -translate-x-1/2 rounded-[34px_34px_28px_28px]"
+        className="absolute bottom-0.5 left-1/2 h-[36px] w-[31px] -translate-x-1/2 rounded-[16px_16px_13px_13px]"
         style={{ background: color }}
       />
-      <span className="absolute left-1/2 top-2 h-7 w-2 -translate-x-1/2 rounded-full bg-emerald-950" />
-      <span className="absolute left-[22px] top-[35px] h-8 w-5 -rotate-[18deg] rounded-full bg-white" />
-      <span className="absolute left-1/2 top-[30px] h-9 w-11 -translate-x-1/2 rounded-full bg-[#111318]">
-        <span className="absolute left-2.5 top-3 h-2.5 w-2.5 rounded-full bg-white" />
-        <span className="absolute right-2.5 top-3 h-2.5 w-2.5 rounded-full bg-white" />
+      <span className="absolute left-1/2 top-1 h-3.5 w-1 -translate-x-1/2 rounded-full bg-emerald-950" />
+      <span className="absolute left-[10px] top-[16px] h-4 w-2.5 -rotate-[18deg] rounded-full bg-white" />
+      <span className="absolute left-1/2 top-[14px] h-[18px] w-[22px] -translate-x-1/2 rounded-full bg-[#111318]">
+        <span className="absolute left-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-white" />
+        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-white" />
       </span>
-      <span className="absolute bottom-[18px] left-1/2 grid h-8 w-8 -translate-x-1/2 place-items-center rounded-lg bg-white text-emerald-500">
-        <Sparkles className="h-5 w-5 fill-current" />
+      <span className="absolute bottom-[8px] left-1/2 grid h-4 w-4 -translate-x-1/2 place-items-center rounded-[5px] bg-white text-emerald-500">
+        <Sparkles className="h-2.5 w-2.5 fill-current" />
       </span>
     </span>
   );

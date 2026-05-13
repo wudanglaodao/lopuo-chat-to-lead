@@ -1,8 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { ArrowUpRight, Check, Clock3, Filter, MessageSquareText, Search, UserRound } from "lucide-react";
 import Link from "next/link";
 
-import { conversations, sites } from "@/db";
+import { conversations, leads, messages, sites, tenants } from "@/db";
 import { getDb } from "@/db";
 import { getTenantOptions, resolveActiveTenant } from "@/lib/admin-tenants";
 import { requireAdmin } from "@/lib/auth";
@@ -16,17 +16,18 @@ type ConversationRow = {
   pageUrl: string | null;
   hasMiss: boolean;
   hasLead: boolean;
-  updatedAt?: Date;
+  updatedAt?: Date | string | null;
   tenant?: { id: string; name: string } | null;
-  messages: Array<{ id: string; role: string; content: string }>;
-  leads: Array<{
-    id: string;
+  previewContent?: string | null;
+  messageCount: number;
+  lead?: {
+    id?: string | null;
     name?: string | null;
     phone?: string | null;
     wechat?: string | null;
     email?: string | null;
     company?: string | null;
-  }>;
+  } | null;
 };
 
 export default async function ConversationsPage({
@@ -43,19 +44,10 @@ export default async function ConversationsPage({
   const activeTenant = resolveActiveTenant(tenantRows, params.tenantId, site?.defaultTenantId);
   const rows: ConversationRow[] = isDemoMode()
     ? getDemoConversations().filter((conversation) => !activeTenant || conversation.tenant?.id === activeTenant.id)
-    : await getDb().query.conversations.findMany({
-        where: and(
-          eq(conversations.customerId, session.customerId),
-          eq(conversations.siteId, session.siteId),
-          activeTenant ? eq(conversations.tenantId, activeTenant.id) : undefined,
-        ),
-        with: {
-          tenant: true,
-          messages: true,
-          leads: true,
-        },
-        orderBy: desc(conversations.updatedAt),
-        limit: 50,
+    : await getConversationListRows({
+        customerId: session.customerId,
+        siteId: session.siteId,
+        tenantId: activeTenant?.id,
       });
 
   return (
@@ -110,7 +102,7 @@ export default async function ConversationsPage({
 
             <div className="divide-y divide-black/[0.06] dark:divide-white/10">
               {rows.map((conversation, index) => {
-                const lead = conversation.leads[0];
+                const lead = conversation.lead;
                 const preview = getPreview(conversation);
                 const leadContact = lead ? lead.phone || lead.wechat || lead.email || "已留咨" : "未留咨";
                 return (
@@ -149,7 +141,7 @@ export default async function ConversationsPage({
                     </div>
                     <div className="flex items-center gap-2 font-bold text-[#1f2024] dark:text-white">
                       <MessageSquareText className="h-4 w-4 text-[#9aa0aa]" />
-                      {conversation.messages.length}
+                      {conversation.messageCount}
                     </div>
                     <div className="min-w-0">
                       <div className="truncate font-bold text-[#1f2024] dark:text-white">{lead?.company || "未留公司"}</div>
@@ -206,17 +198,117 @@ function TenantPill({ name }: { name: string }) {
 }
 
 function getPreview(conversation: ConversationRow) {
-  return conversation.messages.find((message) => message.role === "user")?.content || "暂无咨询内容";
+  return conversation.previewContent || "暂无咨询内容";
 }
 
-function formatTime(value?: Date) {
+function formatTime(value?: Date | string | null) {
   if (!value) return "刚刚";
-  return value.toLocaleString("zh-CN", {
+  const date = value instanceof Date ? value : new Date(value);
+  return date.toLocaleString("zh-CN", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+async function getConversationListRows({
+  customerId,
+  siteId,
+  tenantId,
+}: {
+  customerId: string;
+  siteId: string;
+  tenantId?: string | null;
+}) {
+  const db = getDb();
+  const tenantFilter = tenantId ? sql`AND ${conversations.tenantId} = ${tenantId}` : sql``;
+  const rows = await db.execute<{
+    id: string;
+    pageUrl: string | null;
+    hasMiss: boolean;
+    hasLead: boolean;
+    updatedAt: Date | string | null;
+    tenantId: string | null;
+    tenantName: string | null;
+    previewContent: string | null;
+    messageCount: number | string;
+    leadId: string | null;
+    leadName: string | null;
+    leadPhone: string | null;
+    leadWechat: string | null;
+    leadEmail: string | null;
+    leadCompany: string | null;
+  }>(sql`
+    SELECT
+      ${conversations.id} AS "id",
+      ${conversations.pageUrl} AS "pageUrl",
+      ${conversations.hasMiss} AS "hasMiss",
+      ${conversations.hasLead} AS "hasLead",
+      ${conversations.updatedAt} AS "updatedAt",
+      ${tenants.id} AS "tenantId",
+      ${tenants.name} AS "tenantName",
+      (
+        SELECT ${messages.content}
+        FROM ${messages}
+        WHERE ${messages.conversationId} = ${conversations.id}
+          AND ${messages.role} = 'user'
+        ORDER BY ${messages.createdAt} ASC
+        LIMIT 1
+      ) AS "previewContent",
+      (
+        SELECT COUNT(*)::int
+        FROM ${messages}
+        WHERE ${messages.conversationId} = ${conversations.id}
+      ) AS "messageCount",
+      first_lead.id AS "leadId",
+      first_lead.name AS "leadName",
+      first_lead.phone AS "leadPhone",
+      first_lead.wechat AS "leadWechat",
+      first_lead.email AS "leadEmail",
+      first_lead.company AS "leadCompany"
+    FROM ${conversations}
+    LEFT JOIN ${tenants} ON ${tenants.id} = ${conversations.tenantId}
+    LEFT JOIN LATERAL (
+      SELECT
+        ${leads.id} AS id,
+        ${leads.name} AS name,
+        ${leads.phone} AS phone,
+        ${leads.wechat} AS wechat,
+        ${leads.email} AS email,
+        ${leads.company} AS company
+      FROM ${leads}
+      WHERE ${leads.conversationId} = ${conversations.id}
+      ORDER BY ${leads.createdAt} ASC
+      LIMIT 1
+    ) first_lead ON true
+    WHERE ${conversations.customerId} = ${customerId}
+      AND ${conversations.siteId} = ${siteId}
+      ${tenantFilter}
+    ORDER BY ${conversations.updatedAt} DESC
+    LIMIT 50
+  `);
+
+  return rows.map((row) => ({
+    id: row.id,
+    pageUrl: row.pageUrl,
+    hasMiss: row.hasMiss,
+    hasLead: row.hasLead,
+    updatedAt: row.updatedAt,
+    tenant: row.tenantId && row.tenantName ? { id: row.tenantId, name: row.tenantName } : null,
+    previewContent: row.previewContent,
+    messageCount: Number(row.messageCount || 0),
+    lead: row.leadId
+      ? {
+          id: row.leadId,
+          name: row.leadName,
+          phone: row.leadPhone,
+          wechat: row.leadWechat,
+          email: row.leadEmail,
+          company: row.leadCompany,
+        }
+      : null,
+  }));
 }
 
 function getDemoConversations(): ConversationRow[] {
@@ -228,15 +320,9 @@ function getDemoConversations(): ConversationRow[] {
       hasLead: true,
       updatedAt: new Date(),
       tenant: { id: "22222222-2222-4222-8222-222222222222", name: "官网客服" },
-      messages: [
-        { id: "demo-message-1", role: "user", content: "你们能帮我的企业解决什么具体问题？" },
-        {
-          id: "demo-message-2",
-          role: "assistant",
-          content: "接入知识库后，AI 会基于官网内容回答，并在商务承诺问题上引导留咨跟进。",
-        },
-      ],
-      leads: [{ id: "demo-lead-1", name: "演示客户", phone: "138****0000", company: "某某科技" }],
+      previewContent: "你们能帮我的企业解决什么具体问题？",
+      messageCount: 2,
+      lead: { id: "demo-lead-1", name: "演示客户", phone: "138****0000", company: "某某科技" },
     },
     {
       id: "demo-conversation-2",
@@ -245,11 +331,9 @@ function getDemoConversations(): ConversationRow[] {
       hasLead: false,
       updatedAt: new Date(Date.now() - 1000 * 60 * 16),
       tenant: { id: "33333333-3333-4333-8333-333333333333", name: "售前咨询" },
-      messages: [
-        { id: "demo-message-3", role: "user", content: "具体报价怎么做？" },
-        { id: "demo-message-4", role: "assistant", content: "这个问题需要同事结合需求确认，我可以先记录联系方式。" },
-      ],
-      leads: [],
+      previewContent: "具体报价怎么做？",
+      messageCount: 2,
+      lead: null,
     },
     {
       id: "demo-conversation-3",
@@ -258,11 +342,9 @@ function getDemoConversations(): ConversationRow[] {
       hasLead: true,
       updatedAt: new Date(Date.now() - 1000 * 60 * 48),
       tenant: { id: "33333333-3333-4333-8333-333333333333", name: "售前咨询" },
-      messages: [
-        { id: "demo-message-5", role: "user", content: "增长超人是一家怎样的公司？" },
-        { id: "demo-message-6", role: "assistant", content: "这是基于官网知识库整理的公司介绍。" },
-      ],
-      leads: [{ id: "demo-lead-2", name: "王女士", wechat: "wx-demo", company: "品牌咨询公司" }],
+      previewContent: "增长超人是一家怎样的公司？",
+      messageCount: 2,
+      lead: { id: "demo-lead-2", name: "王女士", wechat: "wx-demo", company: "品牌咨询公司" },
     },
     {
       id: "demo-conversation-4",
@@ -271,11 +353,9 @@ function getDemoConversations(): ConversationRow[] {
       hasLead: false,
       updatedAt: new Date(Date.now() - 1000 * 60 * 90),
       tenant: { id: "22222222-2222-4222-8222-222222222222", name: "官网客服" },
-      messages: [
-        { id: "demo-message-7", role: "user", content: "你们有哪些解决方案？" },
-        { id: "demo-message-8", role: "assistant", content: "可以从官网知识库中提取服务、产品和案例内容进行回答。" },
-      ],
-      leads: [],
+      previewContent: "你们有哪些解决方案？",
+      messageCount: 2,
+      lead: null,
     },
   ];
 }
