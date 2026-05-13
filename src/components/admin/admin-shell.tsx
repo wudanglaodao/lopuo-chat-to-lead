@@ -68,6 +68,22 @@ export function AdminShell({
   tenantSwitcher?: TenantSwitcher;
   settingsSubnav?: SettingsSubnavGroup[];
 }) {
+  const tenantQuery = tenantSwitcher?.activeTenantId ? `?tenantId=${tenantSwitcher.activeTenantId}` : "";
+  const conversationSubnav = [
+    {
+      href: `/admin/conversations${tenantQuery}`,
+      label: "会话",
+      description: "咨询记录与详情",
+      active: title === "会话" || title === "会话详情",
+    },
+    {
+      href: `/admin/conversations/leads${tenantQuery}`,
+      label: "会话线索",
+      description: "联系方式与摘要",
+      active: title === "会话线索",
+    },
+  ];
+
   return (
     <main className="min-h-screen bg-[#f4f4f5] text-[#1f2024] transition-colors dark:bg-[#101216] dark:text-white">
       <aside className="fixed inset-y-0 left-0 hidden w-[288px] border-r border-black/[0.06] bg-white/80 p-5 backdrop-blur-xl transition-colors dark:border-white/10 dark:bg-[#171a20]/88 md:block">
@@ -77,7 +93,49 @@ export function AdminShell({
         <nav className="mt-14 space-y-3">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = item.label === title;
+            const active = isNavItemActive(item.href, title);
+
+            if (item.href === "/admin/conversations") {
+              return (
+                <details key={item.href} className="group/conversations" open={active}>
+                  <summary
+                    className={[
+                      "group flex cursor-pointer list-none items-center gap-4 rounded-[18px] px-4 py-4 text-[15px] font-semibold transition duration-200 [&::-webkit-details-marker]:hidden",
+                      active
+                        ? "bg-[#f0f0f1] text-[#1f2024] shadow-[inset_0_-1px_0_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.05)] dark:bg-white/10 dark:text-white"
+                        : "text-[#777e89] hover:bg-[#f6f6f7] hover:text-[#1f2024] dark:text-white/55 dark:hover:bg-white/[0.06] dark:hover:text-white",
+                    ].join(" ")}
+                  >
+                    <Icon
+                      className={
+                        active
+                          ? "h-5 w-5 text-[#1f2024] dark:text-white"
+                          : "h-5 w-5 text-[#747b85] transition group-hover:text-[#1f2024] dark:text-white/45 dark:group-hover:text-white"
+                      }
+                    />
+                    <span>会话</span>
+                    <ChevronRight className="ml-auto h-4 w-4 text-[#9aa0aa] transition group-open/conversations:rotate-90" />
+                  </summary>
+                  <div className="ml-8 mt-3 space-y-1.5 border-l border-black/[0.06] pl-4 dark:border-white/10">
+                    {conversationSubnav.map((subItem) => (
+                      <Link
+                        key={subItem.href}
+                        href={subItem.href}
+                        className={[
+                          "block rounded-[14px] px-3 py-2.5 transition",
+                          subItem.active
+                            ? "bg-[#2f7df6] text-white shadow-[0_10px_24px_rgba(47,125,246,0.18)]"
+                            : "text-[#777e89] hover:bg-[#f6f6f7] hover:text-[#1f2024] dark:text-white/45 dark:hover:bg-white/8 dark:hover:text-white",
+                        ].join(" ")}
+                      >
+                        <span className="block text-sm font-bold">{subItem.label}</span>
+                        <span className="mt-0.5 block truncate text-xs font-semibold opacity-65">{subItem.description}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+              );
+            }
 
             if (item.href === "/admin/settings" && settingsSubnav?.length) {
               return (
@@ -179,7 +237,7 @@ export function AdminShell({
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-2 md:hidden">
-              {navItems.map((item) => (
+              {[...navItems, { href: `/admin/conversations/leads${tenantQuery}`, label: "线索", icon: UserRoundCheck }].map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -276,6 +334,14 @@ function buildTenantHref(hrefBase: string, tenantId: string, query?: Record<stri
   }
   params.set("tenantId", tenantId);
   return `${hrefBase}?${params.toString()}`;
+}
+
+function isNavItemActive(href: string, title: string) {
+  if (href === "/admin") return title === "总览";
+  if (href === "/admin/knowledge") return title === "知识库";
+  if (href === "/admin/conversations") return title === "会话" || title === "会话详情" || title === "会话线索";
+  if (href === "/admin/settings") return title === "设置";
+  return false;
 }
 
 export function StatCard({

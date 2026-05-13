@@ -1,14 +1,12 @@
-import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { updateSettingsAction } from "@/app/admin/actions";
-import { getDb, sites } from "@/db";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { TenantManagementPanel } from "@/components/admin/tenant-management-panel";
-import { getTenantOptions, resolveActiveTenant } from "@/lib/admin-tenants";
+import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 import { requireAdmin } from "@/lib/auth";
-import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
+import { isDemoMode } from "@/lib/demo-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -27,33 +25,16 @@ export default async function TenantSettingsPage({
   const session = await requireAdmin();
   const params = await searchParams;
 
-  if (params.tab === "content" || params.tab === "style" || params.tab === "script" || params.tab === "preview") {
+  if (params.tab === "content" || params.tab === "style" || params.tab === "multilingual" || params.tab === "script" || params.tab === "preview") {
     redirect(`/admin/settings?tab=${params.tab}${params.tenantId ? `&tenantId=${params.tenantId}` : ""}`);
   }
 
   const activeTab = normalizeTab(params.tab);
-  const demoConfig = getDemoWidgetConfig({ siteId: session.siteId });
-  const site = isDemoMode()
-    ? {
-        ...demoConfig,
-        id: session.siteId,
-        customerId: session.customerId,
-        name: "演示站点",
-        domain: "lopuo.work",
-        defaultTenantId: "22222222-2222-4222-8222-222222222222",
-        allowedOrigins: ["lopuo.work", "www.lopuo.work", "localhost:3000", "127.0.0.1:3000"],
-        systemPrompt: "",
-        deepseekModel: "",
-        embeddingModel: "",
-      }
-    : (await getDb().select().from(sites).where(eq(sites.id, session.siteId)).limit(1))[0];
-
-  if (!site) {
-    throw new Error("Site not found.");
-  }
-
-  const tenantRows = await getTenantOptions(session.customerId);
-  const activeTenant = resolveActiveTenant(tenantRows, params.tenantId, site.defaultTenantId);
+  const { site, tenantRows, activeTenant } = await getAdminSiteTenantContext({
+    customerId: session.customerId,
+    siteId: session.siteId,
+    requestedTenantId: params.tenantId,
+  });
 
   return (
     <AdminShell

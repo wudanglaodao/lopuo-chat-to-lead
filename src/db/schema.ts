@@ -86,6 +86,12 @@ export const sites = pgTable(
       .notNull()
       .default(sql`'["友好","克制","先理解意图","不急于留资","像真人客服同事"]'::jsonb`),
     businessFlow: text("business_flow"),
+    multilingualEnabled: boolean("multilingual_enabled").notNull().default(false),
+    defaultLocale: text("default_locale").notNull().default("zh-CN"),
+    enabledLocales: jsonb("enabled_locales")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'["zh-CN"]'::jsonb`),
     systemPrompt: text("system_prompt"),
     deepseekModel: text("deepseek_model"),
     embeddingModel: text("embedding_model"),
@@ -133,6 +139,7 @@ export const knowledgeSources = pgTable(
   (table) => [
     uniqueIndex("knowledge_sources_tenant_url_idx").on(table.tenantId, table.url),
     index("knowledge_sources_tenant_idx").on(table.tenantId),
+    index("knowledge_sources_tenant_updated_idx").on(table.tenantId, table.updatedAt),
     index("knowledge_sources_site_idx").on(table.siteId),
   ],
 );
@@ -193,6 +200,7 @@ export const conversations = pgTable(
     visitorId: text("visitor_id").notNull(),
     pageUrl: text("page_url"),
     referrer: text("referrer"),
+    locale: text("locale").notNull().default("zh-CN"),
     status: text("status").notNull().default("open"),
     hasLead: boolean("has_lead").notNull().default(false),
     hasMiss: boolean("has_miss").notNull().default(false),
@@ -202,6 +210,17 @@ export const conversations = pgTable(
   (table) => [
     index("conversations_tenant_updated_idx").on(table.tenantId, table.updatedAt),
     index("conversations_site_updated_idx").on(table.siteId, table.updatedAt),
+    index("conversations_customer_site_updated_idx").on(
+      table.customerId,
+      table.siteId,
+      table.updatedAt,
+    ),
+    index("conversations_customer_site_tenant_updated_idx").on(
+      table.customerId,
+      table.siteId,
+      table.tenantId,
+      table.updatedAt,
+    ),
   ],
 );
 
@@ -234,6 +253,11 @@ export const messages = pgTable(
       table.conversationId,
       table.createdAt,
     ),
+    index("messages_conversation_role_created_idx").on(
+      table.conversationId,
+      table.role,
+      table.createdAt,
+    ),
   ],
 );
 
@@ -259,11 +283,21 @@ export const leads = pgTable(
     email: text("email"),
     company: text("company"),
     requirement: text("requirement"),
+    summary: text("summary"),
+    summaryModel: text("summary_model"),
+    summaryUpdatedAt: timestamp("summary_updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    index("leads_customer_site_tenant_created_idx").on(
+      table.customerId,
+      table.siteId,
+      table.tenantId,
+      table.createdAt,
+    ),
     index("leads_tenant_created_idx").on(table.tenantId, table.createdAt),
     index("leads_site_created_idx").on(table.siteId, table.createdAt),
+    index("leads_conversation_created_idx").on(table.conversationId, table.createdAt),
   ],
 );
 

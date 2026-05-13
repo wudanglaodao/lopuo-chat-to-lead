@@ -1,10 +1,10 @@
-import { and, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { ArrowUpRight, Check, Clock3, Filter, MessageSquareText, Search, UserRound } from "lucide-react";
 import Link from "next/link";
 
-import { conversations, leads, messages, sites, tenants } from "@/db";
+import { conversations, leads, messages, tenants } from "@/db";
 import { getDb } from "@/db";
-import { getTenantOptions, resolveActiveTenant } from "@/lib/admin-tenants";
+import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -37,11 +37,11 @@ export default async function ConversationsPage({
 }) {
   const session = await requireAdmin();
   const params = await searchParams;
-  const [site] = isDemoMode()
-    ? [{ defaultTenantId: "22222222-2222-4222-8222-222222222222" }]
-    : await getDb().select({ defaultTenantId: sites.defaultTenantId }).from(sites).where(eq(sites.id, session.siteId)).limit(1);
-  const tenantRows = await getTenantOptions(session.customerId);
-  const activeTenant = resolveActiveTenant(tenantRows, params.tenantId, site?.defaultTenantId);
+  const { tenantRows, activeTenant } = await getAdminSiteTenantContext({
+    customerId: session.customerId,
+    siteId: session.siteId,
+    requestedTenantId: params.tenantId,
+  });
   const rows: ConversationRow[] = isDemoMode()
     ? getDemoConversations().filter((conversation) => !activeTenant || conversation.tenant?.id === activeTenant.id)
     : await getConversationListRows({
@@ -108,10 +108,7 @@ export default async function ConversationsPage({
                 return (
                   <div
                     key={conversation.id}
-                    className={[
-                      "grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_86px] items-center gap-4 px-2 py-4 text-sm transition",
-                      index === 1 ? "rounded-[18px] bg-[#f0f2f5] dark:bg-white/8" : "hover:bg-[#f7f7f8] dark:hover:bg-white/[0.05]",
-                    ].join(" ")}
+                    className="grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_86px] items-center gap-4 px-2 py-4 text-sm transition hover:bg-[#f7f7f8] dark:hover:bg-white/[0.05]"
                   >
                     <div>
                       <span className="grid h-7 w-7 place-items-center rounded-lg border-2 border-[#d3d7de] dark:border-white/20">
@@ -240,35 +237,46 @@ async function getConversationListRows({
     leadEmail: string | null;
     leadCompany: string | null;
   }>(sql`
+    WITH recent_conversations AS MATERIALIZED (
+      SELECT
+        ${conversations.id} AS id,
+        ${conversations.pageUrl} AS page_url,
+        ${conversations.hasMiss} AS has_miss,
+        ${conversations.hasLead} AS has_lead,
+        ${conversations.updatedAt} AS updated_at,
+        ${conversations.tenantId} AS tenant_id
+      FROM ${conversations}
+      WHERE ${conversations.customerId} = ${customerId}
+        AND ${conversations.siteId} = ${siteId}
+        ${tenantFilter}
+      ORDER BY ${conversations.updatedAt} DESC
+      LIMIT 50
+    )
     SELECT
-      ${conversations.id} AS "id",
-      ${conversations.pageUrl} AS "pageUrl",
-      ${conversations.hasMiss} AS "hasMiss",
-      ${conversations.hasLead} AS "hasLead",
-      ${conversations.updatedAt} AS "updatedAt",
+      recent_conversations.id AS "id",
+      recent_conversations.page_url AS "pageUrl",
+      recent_conversations.has_miss AS "hasMiss",
+      recent_conversations.has_lead AS "hasLead",
+      recent_conversations.updated_at AS "updatedAt",
       ${tenants.id} AS "tenantId",
       ${tenants.name} AS "tenantName",
-      (
-        SELECT ${messages.content}
-        FROM ${messages}
-        WHERE ${messages.conversationId} = ${conversations.id}
-          AND ${messages.role} = 'user'
-        ORDER BY ${messages.createdAt} ASC
-        LIMIT 1
-      ) AS "previewContent",
-      (
-        SELECT COUNT(*)::int
-        FROM ${messages}
-        WHERE ${messages.conversationId} = ${conversations.id}
-      ) AS "messageCount",
+      message_stats.preview_content AS "previewContent",
+      COALESCE(message_stats.message_count, 0) AS "messageCount",
       first_lead.id AS "leadId",
       first_lead.name AS "leadName",
       first_lead.phone AS "leadPhone",
       first_lead.wechat AS "leadWechat",
       first_lead.email AS "leadEmail",
       first_lead.company AS "leadCompany"
-    FROM ${conversations}
-    LEFT JOIN ${tenants} ON ${tenants.id} = ${conversations.tenantId}
+    FROM recent_conversations
+    LEFT JOIN ${tenants} ON ${tenants.id} = recent_conversations.tenant_id
+    LEFT JOIN LATERAL (
+      SELECT
+        COUNT(*)::int AS message_count,
+        (ARRAY_AGG(${messages.content} ORDER BY ${messages.createdAt} ASC) FILTER (WHERE ${messages.role} = 'user'))[1] AS preview_content
+      FROM ${messages}
+      WHERE ${messages.conversationId} = recent_conversations.id
+    ) message_stats ON true
     LEFT JOIN LATERAL (
       SELECT
         ${leads.id} AS id,
@@ -278,15 +286,11 @@ async function getConversationListRows({
         ${leads.email} AS email,
         ${leads.company} AS company
       FROM ${leads}
-      WHERE ${leads.conversationId} = ${conversations.id}
+      WHERE ${leads.conversationId} = recent_conversations.id
       ORDER BY ${leads.createdAt} ASC
       LIMIT 1
     ) first_lead ON true
-    WHERE ${conversations.customerId} = ${customerId}
-      AND ${conversations.siteId} = ${siteId}
-      ${tenantFilter}
-    ORDER BY ${conversations.updatedAt} DESC
-    LIMIT 50
+    ORDER BY recent_conversations.updated_at DESC
   `);
 
   return rows.map((row) => ({

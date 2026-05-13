@@ -1,24 +1,30 @@
-import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { updateSettingsAction } from "@/app/admin/actions";
-import { getDb, sites } from "@/db";
-import { AiContentAssistant } from "@/components/admin/ai-content-assistant";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getTenantOptions, resolveActiveTenant } from "@/lib/admin-tenants";
+import { LazyAiContentAssistant } from "@/components/admin/lazy-ai-content-assistant";
+import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 import { requireAdmin } from "@/lib/auth";
 import { AI_TONE_PRESETS, DEFAULT_AI_TONE, DEFAULT_BUSINESS_FLOW, DEFAULT_TONE_KEYWORDS, DEFAULT_WELCOME_TITLE } from "@/lib/defaults";
-import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
+import { isDemoMode } from "@/lib/demo-mode";
 import { absoluteUrl } from "@/lib/utils";
+import {
+  DEFAULT_WIDGET_LOCALE,
+  SUPPORTED_WIDGET_LOCALES,
+  WIDGET_LOCALE_LABELS,
+  normalizeEnabledLocales,
+  normalizeWidgetLocale,
+} from "@/lib/widget-i18n";
 
 export const dynamic = "force-dynamic";
 
-type SettingsTab = "content" | "style" | "script";
+type SettingsTab = "content" | "style" | "multilingual" | "script";
 
 const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
   { id: "content", label: "对话内容", description: "欢迎语、推荐问题、留资" },
   { id: "style", label: "入口样式", description: "按钮、头像、主题色" },
+  { id: "multilingual", label: "多语言", description: "默认语言、自动适配" },
   { id: "script", label: "脚本嵌入", description: "官网安装代码" },
 ];
 
@@ -33,31 +39,16 @@ export default async function SettingsPage({
     redirect(`/admin/settings/tenants?tab=${params.tab}${params.tenantId ? `&tenantId=${params.tenantId}` : ""}`);
   }
   const activeTab = normalizeTab(params.tab);
-  const demoConfig = getDemoWidgetConfig({ siteId: session.siteId });
-  const site = isDemoMode()
-    ? {
-        ...demoConfig,
-        id: session.siteId,
-        customerId: session.customerId,
-        name: "演示站点",
-        domain: "lopuo.work",
-        defaultTenantId: "22222222-2222-4222-8222-222222222222",
-        allowedOrigins: ["lopuo.work", "www.lopuo.work", "localhost:3000", "127.0.0.1:3000"],
-        systemPrompt: "",
-        deepseekModel: "",
-        embeddingModel: "",
-      }
-    : (await getDb().select().from(sites).where(eq(sites.id, session.siteId)).limit(1))[0];
-
-  if (!site) {
-    throw new Error("Site not found.");
-  }
-
-  const tenantRows = await getTenantOptions(session.customerId);
-  const activeTenant = resolveActiveTenant(tenantRows, params.tenantId, site.defaultTenantId);
+  const { site, tenantRows, activeTenant } = await getAdminSiteTenantContext({
+    customerId: session.customerId,
+    siteId: session.siteId,
+    requestedTenantId: params.tenantId,
+  });
   const embedBaseUrl = getEmbedBaseUrl(site.domain);
   const embedCode = `<script src="${embedBaseUrl}/widget.js" data-site-id="${site.id}"></script>`;
   const allowedOrigins = Array.from(new Set([site.domain, `www.${site.domain.replace(/^www\./, "")}`, ...site.allowedOrigins])).join("\n");
+  const defaultLocale = normalizeWidgetLocale(site.defaultLocale) || DEFAULT_WIDGET_LOCALE;
+  const enabledLocales = normalizeEnabledLocales(site.enabledLocales || [], defaultLocale);
 
   return (
     <AdminShell
@@ -72,12 +63,12 @@ export default async function SettingsPage({
       settingsSubnav={[
         {
           label: "配置",
-          description: "对话、样式、脚本、预览",
+          description: "对话、样式、多语言、脚本",
           items: [
             {
               href: `/admin/settings?tab=${activeTab}${activeTenant?.id ? `&tenantId=${activeTenant.id}` : ""}`,
               label: "配置",
-              description: "对话、样式、脚本、预览",
+              description: "对话、样式、多语言、脚本",
               active: true,
             },
           ],
@@ -111,7 +102,7 @@ export default async function SettingsPage({
               <form action={updateSettingsAction} className="space-y-6">
                 <input type="hidden" name="settingsSection" value="content" />
                 <SettingsSection accent="#c7b6ff" title="对话内容" description="配置访客打开窗口后看到的欢迎语、推荐问题、语气流程和留资开关。">
-                  <AiContentAssistant
+                  <LazyAiContentAssistant
                     defaultWelcomeTitle={site.welcomeTitle || DEFAULT_WELCOME_TITLE}
                     defaultWelcomeMessage={site.welcomeMessage}
                     defaultSuggestedQuestions={site.suggestedQuestions}
@@ -190,6 +181,41 @@ export default async function SettingsPage({
                     </p>
                   </div>
                   <TextArea label="允许嵌入域名，每行一个" name="allowedOrigins" defaultValue={allowedOrigins} rows={4} />
+                </SettingsSection>
+                <SaveBar />
+              </form>
+            ) : null}
+
+            {activeTab === "multilingual" ? (
+              <form action={updateSettingsAction} className="space-y-6">
+                <input type="hidden" name="settingsSection" value="multilingual" />
+                <SettingsSection accent="#7dd3fc" title="多语言" description="开启后，弹窗会优先使用脚本指定语言，其次自动识别访客设备语言，未匹配时使用默认语言。">
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <Checkbox label="启用多语言自动适配" name="multilingualEnabled" defaultChecked={site.multilingualEnabled} />
+                    <Select
+                      label="默认语言"
+                      name="defaultLocale"
+                      defaultValue={defaultLocale}
+                      options={SUPPORTED_WIDGET_LOCALES.map((locale) => [locale, WIDGET_LOCALE_LABELS[locale]] as [string, string])}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-[#777e89] dark:text-white/60">启用语言</div>
+                    <div className="mt-2 grid gap-3 md:grid-cols-3">
+                      {SUPPORTED_WIDGET_LOCALES.map((locale) => (
+                        <Checkbox
+                          key={locale}
+                          label={WIDGET_LOCALE_LABELS[locale]}
+                          name="enabledLocales"
+                          value={locale}
+                          defaultChecked={enabledLocales.includes(locale)}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-3 text-sm font-semibold leading-6 text-[#777e89] dark:text-white/55">
+                      默认语言会自动加入启用语言。脚本也可以加 <code className="rounded bg-[#fff1e8] px-1 dark:bg-white/10">data-locale=&quot;en&quot;</code> 指定语言。
+                    </p>
+                  </div>
                 </SettingsSection>
                 <SaveBar />
               </form>
@@ -362,10 +388,20 @@ function Field({
   );
 }
 
-function Checkbox({ label, name, defaultChecked }: { label: string; name: string; defaultChecked: boolean }) {
+function Checkbox({
+  label,
+  name,
+  defaultChecked,
+  value,
+}: {
+  label: string;
+  name: string;
+  defaultChecked: boolean;
+  value?: string;
+}) {
   return (
     <label className="flex items-center gap-3 rounded-[18px] bg-[#f6f6f7] px-4 py-3 text-sm font-bold text-[#5d646f] dark:bg-white/8 dark:text-white/65">
-      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="h-4 w-4 accent-[#2f7df6]" />
+      <input type="checkbox" name={name} value={value} defaultChecked={defaultChecked} className="h-4 w-4 accent-[#2f7df6]" />
       {label}
     </label>
   );

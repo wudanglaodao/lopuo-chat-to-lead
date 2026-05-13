@@ -12,10 +12,10 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { conversations, messages, sites } from "@/db";
+import { conversations, leads, messages, tenants } from "@/db";
 import { getDb } from "@/db";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getTenantOptions, resolveActiveTenant } from "@/lib/admin-tenants";
+import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 
@@ -50,6 +50,8 @@ type ConversationDetail = {
     email?: string | null;
     company?: string | null;
     requirement?: string | null;
+    summary?: string | null;
+    summaryModel?: string | null;
     createdAt?: Date;
   }>;
 };
@@ -63,22 +65,17 @@ export default async function ConversationDetailPage({
 }) {
   const session = await requireAdmin();
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const [site] = isDemoMode()
-    ? [{ defaultTenantId: "22222222-2222-4222-8222-222222222222" }]
-    : await getDb().select({ defaultTenantId: sites.defaultTenantId }).from(sites).where(eq(sites.id, session.siteId)).limit(1);
-  const tenantRows = await getTenantOptions(session.customerId);
-  const activeTenant = resolveActiveTenant(tenantRows, query.tenantId, site?.defaultTenantId);
+  const { tenantRows, activeTenant } = await getAdminSiteTenantContext({
+    customerId: session.customerId,
+    siteId: session.siteId,
+    requestedTenantId: query.tenantId,
+  });
   const conversation = isDemoMode()
     ? getDemoConversation(id)
-    : await getDb().query.conversations.findFirst({
-        where: and(eq(conversations.id, id), eq(conversations.customerId, session.customerId), eq(conversations.siteId, session.siteId)),
-        with: {
-          tenant: true,
-          messages: {
-            orderBy: asc(messages.createdAt),
-          },
-          leads: true,
-        },
+    : await getConversationDetail({
+        id,
+        customerId: session.customerId,
+        siteId: session.siteId,
       });
 
   if (!conversation) {
@@ -173,6 +170,12 @@ export default async function ConversationDetailPage({
                   {lead.requirement ? (
                     <div className="rounded-[18px] bg-[#f6f6f7] p-4 text-sm font-semibold leading-6 text-[#5d646f] dark:bg-white/8 dark:text-white/65">
                       {lead.requirement}
+                    </div>
+                  ) : null}
+                  {lead.summary ? (
+                    <div className="rounded-[18px] border border-[#bdf2a0]/40 bg-[#f7fff2] p-4 text-sm font-semibold leading-6 text-[#4f6b45] dark:border-[#bdf2a0]/20 dark:bg-[#bdf2a0]/10 dark:text-[#cfefc0]">
+                      <span className="mb-1 block text-xs text-[#6bb956] dark:text-[#a5dd95]">AI 摘要</span>
+                      {lead.summary}
                     </div>
                   ) : null}
                 </div>
@@ -330,6 +333,87 @@ function formatDate(value?: Date) {
   });
 }
 
+async function getConversationDetail({
+  id,
+  customerId,
+  siteId,
+}: {
+  id: string;
+  customerId: string;
+  siteId: string;
+}): Promise<ConversationDetail | undefined> {
+  const db = getDb();
+  const [conversationRows, messageRows, leadRows] = await Promise.all([
+    db
+      .select({
+        id: conversations.id,
+        visitorId: conversations.visitorId,
+        pageUrl: conversations.pageUrl,
+        referrer: conversations.referrer,
+        status: conversations.status,
+        hasMiss: conversations.hasMiss,
+        hasLead: conversations.hasLead,
+        createdAt: conversations.createdAt,
+        updatedAt: conversations.updatedAt,
+        tenantId: tenants.id,
+        tenantName: tenants.name,
+      })
+      .from(conversations)
+      .leftJoin(tenants, eq(tenants.id, conversations.tenantId))
+      .where(and(eq(conversations.id, id), eq(conversations.customerId, customerId), eq(conversations.siteId, siteId)))
+      .limit(1),
+    db
+      .select({
+        id: messages.id,
+        role: messages.role,
+        content: messages.content,
+        sources: messages.sources,
+        latencyMs: messages.latencyMs,
+        model: messages.model,
+        isMiss: messages.isMiss,
+        createdAt: messages.createdAt,
+      })
+      .from(messages)
+      .where(and(eq(messages.conversationId, id), eq(messages.customerId, customerId), eq(messages.siteId, siteId)))
+      .orderBy(asc(messages.createdAt)),
+    db
+      .select({
+        id: leads.id,
+        name: leads.name,
+        phone: leads.phone,
+        wechat: leads.wechat,
+        email: leads.email,
+        company: leads.company,
+        requirement: leads.requirement,
+        summary: leads.summary,
+        summaryModel: leads.summaryModel,
+        createdAt: leads.createdAt,
+      })
+      .from(leads)
+      .where(and(eq(leads.conversationId, id), eq(leads.customerId, customerId), eq(leads.siteId, siteId)))
+      .orderBy(asc(leads.createdAt)),
+  ]);
+  const [conversation] = conversationRows;
+  if (!conversation) return undefined;
+
+  return {
+    id: conversation.id,
+    visitorId: conversation.visitorId,
+    pageUrl: conversation.pageUrl,
+    referrer: conversation.referrer,
+    status: conversation.status,
+    hasMiss: conversation.hasMiss,
+    hasLead: conversation.hasLead,
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    tenant: conversation.tenantId && conversation.tenantName
+      ? { id: conversation.tenantId, name: conversation.tenantName }
+      : null,
+    messages: messageRows,
+    leads: leadRows,
+  };
+}
+
 function getDemoConversation(id: string): ConversationDetail | undefined {
   const rows: ConversationDetail[] = [
     {
@@ -355,7 +439,17 @@ function getDemoConversation(id: string): ConversationDetail | undefined {
           createdAt: new Date(Date.now() - 1000 * 60 * 6),
         },
       ],
-      leads: [{ id: "demo-lead-1", name: "演示客户", phone: "138****0000", company: "某某科技", requirement: "想了解官网 AI 客服接入方案。" }],
+      leads: [
+        {
+          id: "demo-lead-1",
+          name: "演示客户",
+          phone: "138****0000",
+          company: "某某科技",
+          requirement: "想了解官网 AI 客服接入方案。",
+          summary: "访客关注官网 AI 客服接入方式，希望了解方案和后续落地安排。",
+          summaryModel: "demo",
+        },
+      ],
     },
     {
       id: "demo-conversation-2",

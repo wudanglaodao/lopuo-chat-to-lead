@@ -15,6 +15,16 @@ type AssistResponse = {
   error?: string;
 };
 
+export type AiContentAssistantProps = {
+  defaultWelcomeTitle: string;
+  defaultWelcomeMessage: string;
+  defaultSuggestedQuestions: string[];
+  defaultAiTone: string;
+  toneOptions: Array<[string, string]>;
+  defaultToneKeywords: string[];
+  defaultBusinessFlow: string;
+};
+
 export function AiContentAssistant({
   defaultWelcomeTitle,
   defaultWelcomeMessage,
@@ -23,15 +33,7 @@ export function AiContentAssistant({
   toneOptions,
   defaultToneKeywords,
   defaultBusinessFlow,
-}: {
-  defaultWelcomeTitle: string;
-  defaultWelcomeMessage: string;
-  defaultSuggestedQuestions: string[];
-  defaultAiTone: string;
-  toneOptions: Array<[string, string]>;
-  defaultToneKeywords: string[];
-  defaultBusinessFlow: string;
-}) {
+}: AiContentAssistantProps) {
   const [welcomeTitle, setWelcomeTitle] = useState(defaultWelcomeTitle);
   const [welcomeMessage, setWelcomeMessage] = useState(defaultWelcomeMessage);
   const [suggestedQuestions, setSuggestedQuestions] = useState(defaultSuggestedQuestions.join("\n"));

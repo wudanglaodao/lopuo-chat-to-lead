@@ -1,9 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 
 import { conversations, getDb, leads } from "@/db";
 import { isDemoMode } from "@/lib/demo-mode";
+import { buildLeadFallbackSummary, updateLeadSummary } from "@/lib/leads";
 
 const leadSchema = z.object({
   siteId: z.string().uuid(),
@@ -50,6 +51,9 @@ export async function POST(
       email: body.email || undefined,
       company: body.company,
       requirement: body.requirement,
+      summary: buildLeadFallbackSummary(body),
+      summaryModel: "fallback",
+      summaryUpdatedAt: new Date(),
     })
     .returning();
 
@@ -57,6 +61,28 @@ export async function POST(
     .update(conversations)
     .set({ hasLead: true, updatedAt: sql`now()` })
     .where(eq(conversations.id, conversation.id));
+
+  after(async () => {
+    try {
+      await updateLeadSummary(lead.id, {
+        customerId: conversation.customerId,
+        tenantId: conversation.tenantId,
+        siteId: conversation.siteId,
+        conversationId: conversation.id,
+        name: body.name,
+        phone: body.phone,
+        wechat: body.wechat,
+        email: body.email || null,
+        company: body.company,
+        requirement: body.requirement,
+      });
+    } catch (error) {
+      console.warn("[lead.summary.update.failed]", {
+        leadId: lead.id,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+  });
 
   return NextResponse.json({ leadId: lead.id });
 }

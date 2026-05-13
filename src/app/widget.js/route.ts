@@ -17,34 +17,14 @@ export function GET(request: NextRequest) {
   } catch (error) {}
   var siteId = currentScript && currentScript.dataset ? currentScript.dataset.siteId : "";
   var tenantId = currentScript && currentScript.dataset ? currentScript.dataset.tenantId : "";
+  var locale = currentScript && currentScript.dataset ? currentScript.dataset.locale : "";
   var previewStyle = currentScript && currentScript.dataset ? currentScript.dataset.previewStyle : "";
   var previewText = currentScript && currentScript.dataset ? currentScript.dataset.previewText : "";
-  var iframe = document.createElement("iframe");
-  iframe.title = "Lopuo Signal AI 营销助手";
-  iframe.src = widgetOrigin + "/widget?siteId=" + encodeURIComponent(siteId || "") + "&tenantId=" + encodeURIComponent(tenantId || "") + "&previewStyle=" + encodeURIComponent(previewStyle || "") + "&previewText=" + encodeURIComponent(previewText || "");
-  iframe.style.position = "fixed";
-  iframe.style.right = "20px";
-  iframe.style.bottom = "20px";
-  iframe.style.width = "96px";
-  iframe.style.height = "196px";
-  iframe.style.border = "0";
-  iframe.style.zIndex = "2147483647";
-  iframe.style.colorScheme = "normal";
-  iframe.style.background = "transparent";
-  iframe.style.backgroundColor = "transparent";
-  iframe.style.boxShadow = "none";
-  iframe.style.borderRadius = "0";
-  iframe.style.overflow = "visible";
-  iframe.style.transition = "width 180ms ease, height 180ms ease, right 180ms ease, bottom 180ms ease";
-  iframe.setAttribute("allow", "clipboard-write");
-  document.body.appendChild(iframe);
-
-  window.addEventListener("message", function (event) {
-    if (event.origin !== widgetOrigin || !event.data || event.data.type !== "lopuo-ai-widget-resize") {
-      return;
-    }
-    var isOpen = Boolean(event.data.open);
-    var launcherStyle = event.data.launcherStyle || "vertical";
+  function normalizeLauncherStyle(style) {
+    return style === "pill" || style === "vertical" || style === "mascot" ? style : "";
+  }
+  function applyFrameState(isOpen, launcherStyle) {
+    var normalizedStyle = normalizeLauncherStyle(launcherStyle) || "vertical";
     var isMobile = window.innerWidth < 640;
     if (isOpen && isMobile) {
       iframe.style.right = "0";
@@ -65,10 +45,10 @@ export function GET(request: NextRequest) {
       iframe.style.background = "transparent";
       iframe.style.backgroundColor = "transparent";
       iframe.style.boxShadow = "none";
-      if (launcherStyle === "pill") {
+      if (normalizedStyle === "pill") {
         iframe.style.width = "276px";
         iframe.style.height = "92px";
-      } else if (launcherStyle === "vertical") {
+      } else if (normalizedStyle === "vertical") {
         iframe.style.width = "96px";
         iframe.style.height = "196px";
       } else {
@@ -76,6 +56,32 @@ export function GET(request: NextRequest) {
         iframe.style.height = "76px";
       }
     }
+  }
+  var iframe = document.createElement("iframe");
+  iframe.title = "Lopuo Signal AI 营销助手";
+  iframe.src = widgetOrigin + "/widget?siteId=" + encodeURIComponent(siteId || "") + "&tenantId=" + encodeURIComponent(tenantId || "") + "&locale=" + encodeURIComponent(locale || "") + "&previewStyle=" + encodeURIComponent(previewStyle || "") + "&previewText=" + encodeURIComponent(previewText || "");
+  iframe.style.position = "fixed";
+  iframe.style.right = "20px";
+  iframe.style.bottom = "20px";
+  iframe.style.border = "0";
+  iframe.style.zIndex = "2147483647";
+  iframe.style.colorScheme = "normal";
+  iframe.style.background = "transparent";
+  iframe.style.backgroundColor = "transparent";
+  iframe.style.boxShadow = "none";
+  iframe.style.borderRadius = "0";
+  iframe.style.overflow = "visible";
+  iframe.style.transition = "width 180ms ease, height 180ms ease, right 180ms ease, bottom 180ms ease";
+  iframe.setAttribute("allow", "clipboard-write");
+  applyFrameState(false, previewStyle);
+  document.body.appendChild(iframe);
+
+  window.addEventListener("message", function (event) {
+    if (event.origin !== widgetOrigin || !event.data || event.data.type !== "lopuo-ai-widget-resize") {
+      return;
+    }
+    var isOpen = Boolean(event.data.open);
+    applyFrameState(isOpen, event.data.launcherStyle);
   });
 })();
 `;

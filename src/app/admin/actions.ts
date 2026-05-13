@@ -8,6 +8,11 @@ import { getDb, sites, tenants } from "@/db";
 import { clearSessionCookie, requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { addKnowledgeSource, syncKnowledgeSource } from "@/lib/knowledge";
+import {
+  DEFAULT_WIDGET_LOCALE,
+  normalizeEnabledLocales,
+  normalizeWidgetLocale,
+} from "@/lib/widget-i18n";
 
 export async function logoutAction() {
   await clearSessionCookie();
@@ -168,6 +173,17 @@ export async function updateSettingsAction(formData: FormData) {
       .map((item) => item.trim())
       .filter(Boolean);
     values.businessFlow = String(formData.get("businessFlow") || "").trim() || null;
+  }
+
+  if (section === "multilingual" || section === "all") {
+    const defaultLocale = normalizeWidgetLocale(String(formData.get("defaultLocale") || "")) || DEFAULT_WIDGET_LOCALE;
+    const requestedLocales = formData
+      .getAll("enabledLocales")
+      .map((item) => String(item || ""));
+
+    values.multilingualEnabled = formData.get("multilingualEnabled") === "on";
+    values.defaultLocale = defaultLocale;
+    values.enabledLocales = normalizeEnabledLocales(requestedLocales, defaultLocale);
   }
 
   if (section === "security" || section === "all") {

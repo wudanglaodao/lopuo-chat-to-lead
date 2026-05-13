@@ -1,7 +1,14 @@
 "use client";
 
-import { Bell, Bot, MessageCircle, Send, Sparkles, X } from "lucide-react";
+import { Bell, Bot, Check, Copy, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  WIDGET_UI_TEXT,
+  buildBaseWidgetCopy,
+  localizeDefaultWidgetCopy,
+  resolveWidgetLocale,
+} from "@/lib/widget-i18n";
 
 type WidgetConfig = {
   siteId: string;
@@ -18,6 +25,9 @@ type WidgetConfig = {
   suggestedQuestions: string[];
   showSources: boolean;
   collectLeadEnabled: boolean;
+  multilingualEnabled: boolean;
+  defaultLocale: string;
+  enabledLocales: string[];
 };
 
 type ChatMessage = {
@@ -43,11 +53,13 @@ type MessageStreamEvent =
 export function WidgetApp({
   siteId,
   tenantId,
+  requestedLocale,
   previewStyle,
   previewText,
 }: {
   siteId: string;
   tenantId?: string;
+  requestedLocale?: string;
   previewStyle?: string;
   previewText?: string;
 }) {
@@ -60,6 +72,8 @@ export function WidgetApp({
   const [error, setError] = useState("");
   const [showLeadPrompt, setShowLeadPrompt] = useState(false);
   const [leadSaved, setLeadSaved] = useState(false);
+  const previewLauncherStyle = normalizeLauncherStyle(previewStyle);
+  const launcherStyle = config?.launcherStyle || previewLauncherStyle;
 
   const visitorId = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -71,16 +85,51 @@ export function WidgetApp({
     return next;
   }, []);
 
+  const activeLocale = useMemo(() => {
+    const browserLocales = typeof navigator === "undefined" ? [] : Array.from(navigator.languages || [navigator.language]);
+    return resolveWidgetLocale({
+      requestedLocale,
+      browserLocales,
+      multilingualEnabled: config?.multilingualEnabled,
+      defaultLocale: config?.defaultLocale,
+      enabledLocales: config?.enabledLocales,
+    });
+  }, [config?.defaultLocale, config?.enabledLocales, config?.multilingualEnabled, requestedLocale]);
+
+  const uiText = WIDGET_UI_TEXT[activeLocale];
+  const localizedCopy = useMemo(() => {
+    const baseCopy = buildBaseWidgetCopy({
+      widgetName: config?.widgetName,
+      launcherText: config?.launcherText,
+      welcomeTitle: config?.welcomeTitle,
+      welcomeMessage: config?.welcomeMessage,
+      suggestedQuestions: config?.suggestedQuestions,
+    });
+
+    return localizeDefaultWidgetCopy({ copy: baseCopy, locale: activeLocale });
+  }, [
+    activeLocale,
+    config?.launcherText,
+    config?.suggestedQuestions,
+    config?.welcomeMessage,
+    config?.welcomeTitle,
+    config?.widgetName,
+  ]);
+
   useEffect(() => {
+    if (!launcherStyle && !isOpen) {
+      return;
+    }
+
     window.parent.postMessage(
       {
         type: "lopuo-ai-widget-resize",
         open: isOpen,
-        launcherStyle: config?.launcherStyle || "vertical",
+        launcherStyle: launcherStyle || "vertical",
       },
       "*",
     );
-  }, [isOpen, config?.launcherStyle]);
+  }, [isOpen, launcherStyle]);
 
   useEffect(() => {
     if (!siteId) {
@@ -90,18 +139,19 @@ export function WidgetApp({
     const params = new URLSearchParams({
       siteId,
       tenantId: tenantId || "",
+      locale: requestedLocale || "",
       previewStyle: previewStyle || "",
       previewText: previewText || "",
     });
 
     fetch(`/api/widget/config?${params.toString()}`)
       .then(async (response) => {
-        if (!response.ok) throw new Error((await response.json()).error || "配置加载失败");
+        if (!response.ok) throw new Error((await response.json()).error || uiText.configLoadFailed);
         return response.json();
       })
       .then(setConfig)
       .catch((err: Error) => setError(err.message));
-  }, [siteId, tenantId, previewStyle, previewText]);
+  }, [siteId, tenantId, requestedLocale, previewStyle, previewText, uiText.configLoadFailed]);
 
   const ensureConversation = useCallback(async () => {
     if (conversationId) {
@@ -109,7 +159,7 @@ export function WidgetApp({
     }
 
     const activeTenantId = config?.tenantId || tenantId || "default";
-    const storageKey = `lopuo_ai_conversation_${siteId}_${activeTenantId}`;
+    const storageKey = `lopuo_ai_conversation_${siteId}_${activeTenantId}_${activeLocale}`;
     const stored = window.localStorage.getItem(storageKey) || undefined;
     const response = await fetch("/api/conversations", {
       method: "POST",
@@ -119,20 +169,21 @@ export function WidgetApp({
         tenantId: config?.tenantId || tenantId || undefined,
         visitorId,
         conversationId: stored,
+        locale: activeLocale,
         pageUrl: document.referrer || window.location.href,
         referrer: document.referrer,
       }),
     });
 
     if (!response.ok) {
-      throw new Error("会话创建失败");
+      throw new Error(uiText.createConversationFailed);
     }
 
     const data = (await response.json()) as { conversationId: string };
     window.localStorage.setItem(storageKey, data.conversationId);
     setConversationId(data.conversationId);
     return data.conversationId;
-  }, [config?.tenantId, conversationId, siteId, tenantId, visitorId]);
+  }, [activeLocale, config?.tenantId, conversationId, siteId, tenantId, uiText.createConversationFailed, visitorId]);
 
   async function sendMessage(content: string) {
     const text = content.trim();
@@ -154,7 +205,7 @@ export function WidgetApp({
     setMessages((items) => [
       ...items,
       { id: crypto.randomUUID(), role: "user", content: text },
-      { id: assistantId, role: "assistant", content: "正在理解问题..." },
+      { id: assistantId, role: "assistant", content: `${uiText.thinking}${uiText.thinkingSuffix}` },
     ]);
 
     try {
@@ -165,24 +216,24 @@ export function WidgetApp({
           Accept: "text/event-stream",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ siteId, message: text, stream: true }),
+        body: JSON.stringify({ siteId, message: text, stream: true, locale: activeLocale }),
       });
 
       if (!response.ok) {
-        throw new Error("AI 回复失败，请稍后再试。");
+        throw new Error(uiText.answerFailed);
       }
 
       const contentType = response.headers.get("content-type") || "";
       if (contentType.includes("text/event-stream") && response.body) {
-        await readMessageStream(response, {
+        await readMessageStream(response, uiText.answerFailed, {
           onStatus(message) {
             if (!assistantContent) {
-              updateAssistant({ content: `${message}...` });
+              updateAssistant({ content: `${message}${uiText.thinkingSuffix}` });
             }
           },
           onDelta(content) {
             assistantContent += content;
-            updateAssistant({ content: assistantContent || "正在整理回答..." });
+            updateAssistant({ content: assistantContent || uiText.composing });
           },
           onDone(data) {
             assistantFinalized = true;
@@ -200,7 +251,7 @@ export function WidgetApp({
         updateLeadState(data);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "发送失败";
+      const message = err instanceof Error ? err.message : uiText.sendFailed;
       setError(message);
       if (!assistantFinalized) {
         updateAssistant({ content: message });
@@ -221,17 +272,35 @@ export function WidgetApp({
 
   const themeColor = config?.themeColor || "#16a34a";
   const logoUrl = "https://www.lopuo.com/wp-content/themes/lopuo-theme/assets/img/lopuo-logo-black.svg?ver=0.8.14";
-  const welcomeMessage = config?.welcomeMessage || "您好，请告诉我您想了解的问题。";
-  const suggestedQuestions = config?.suggestedQuestions || [];
+  const welcomeMessage = localizedCopy.welcomeMessage;
+  const suggestedQuestions = localizedCopy.suggestedQuestions;
 
   if (!isOpen) {
-    return <LauncherButton config={config} onOpen={() => setIsOpen(true)} />;
+    if (!launcherStyle) {
+      return null;
+    }
+
+    return (
+      <LauncherButton
+        config={config}
+        launcherStyle={launcherStyle}
+        copy={localizedCopy}
+        uiText={uiText}
+        onOpen={() => setIsOpen(true)}
+      />
+    );
   }
 
   return (
     <div className="flex h-[100dvh] w-full flex-col items-end justify-end bg-transparent text-[#17191d]">
-      <main className="mb-3 flex h-[calc(100dvh-68px)] min-h-0 w-full flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-[#f8fafc]">
-        <header className="relative border-b border-black/[0.06] bg-[#f8fafc] px-4 pb-3 pt-3">
+      <main
+        className="mb-3 flex h-[calc(100dvh-68px)] min-h-0 w-full flex-col overflow-hidden rounded-[22px] border border-black/[0.08]"
+        style={{
+          background:
+            "radial-gradient(circle at 14% 8%, rgba(255,107,74,0.10), transparent 28%), radial-gradient(circle at 92% 0%, rgba(47,125,246,0.10), transparent 24%), linear-gradient(180deg, #fbfcff 0%, #f5f8fb 52%, #eef4f7 100%)",
+        }}
+      >
+        <header className="relative border-b border-black/[0.06] bg-white/45 px-4 pb-3 pt-3 backdrop-blur">
           <div className="flex h-12 items-center justify-between">
             <div className="flex h-11 min-w-0 items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -239,8 +308,8 @@ export function WidgetApp({
             </div>
             <button
               type="button"
-              aria-label="关闭客服窗口"
-              title="关闭"
+              aria-label={uiText.close}
+              title={uiText.close}
               onClick={() => setIsOpen(false)}
               className="grid h-8 w-8 place-items-center rounded-full text-stone-400 transition hover:bg-white hover:text-stone-700 hover:shadow-[0_6px_16px_rgba(15,23,42,0.08)]"
             >
@@ -256,17 +325,24 @@ export function WidgetApp({
           >
             <span className="inline-flex min-w-0 items-center gap-2">
               <Bell className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">可以直接提问，也可以留下联系方式</span>
+              <span className="truncate">{uiText.banner}</span>
             </span>
             <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-80" />
           </div>
         </header>
 
-        <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <section
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(15,23,42,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.025) 1px, transparent 1px)",
+            backgroundSize: "22px 22px",
+          }}
+        >
           <div className="space-y-4 pb-1">
             <div className="flex items-center gap-3 px-3 py-1 text-[11px] text-stone-400">
               <span className="h-px flex-1 bg-black/[0.08]" />
-              <span>{new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</span>
+              <span>{new Date().toLocaleTimeString(activeLocale, { hour: "2-digit", minute: "2-digit" })}</span>
               <span className="h-px flex-1 bg-black/[0.08]" />
             </div>
             <div className="flex items-start gap-2.5">
@@ -329,7 +405,7 @@ export function WidgetApp({
                           className="block truncate text-xs font-medium"
                           style={{ color: themeColor }}
                         >
-                          来源：{source.title || source.url}
+                          {uiText.source}：{source.title || source.url}
                         </a>
                       ))}
                     </div>
@@ -344,15 +420,14 @@ export function WidgetApp({
                 </span>
                 <div className="max-w-[86%] rounded-[18px] border border-black/10 bg-white px-4 py-3 text-sm text-stone-800 shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
                   <div className="whitespace-pre-wrap leading-6">
-                    如果您希望顾问进一步沟通，也可以把联系方式和大致需求发给我。
-                    {"\n"}不方便也没关系，我们可以先继续聊。
+                    {uiText.leadPrompt}
                   </div>
                 </div>
               </div>
             ) : null}
             {error || !siteId ? (
               <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error || "缺少 siteId，请检查嵌入代码。"}
+                {error || uiText.missingSiteId}
               </div>
             ) : null}
           </div>
@@ -363,7 +438,7 @@ export function WidgetApp({
             event.preventDefault();
             sendMessage(input);
           }}
-          className="bg-[#f8fafc] px-4 pb-4 pt-2"
+          className="bg-white/35 px-4 pb-4 pt-2 backdrop-blur"
         >
           <div className="flex items-end gap-2 rounded-[18px] border border-black/[0.08] bg-white px-4 py-2 shadow-[0_8px_18px_rgba(15,23,42,0.06)] transition focus-within:border-stone-300">
             <textarea
@@ -375,13 +450,13 @@ export function WidgetApp({
                   sendMessage(input);
                 }
               }}
-              placeholder="说说你想了解的问题..."
+              placeholder={uiText.inputPlaceholder}
               rows={2}
               className="max-h-20 min-h-8 flex-1 resize-none bg-transparent px-1 py-1 text-sm leading-6 outline-none placeholder:text-stone-400"
             />
             <button
               type="submit"
-              aria-label="发送消息"
+              aria-label={uiText.sendMessage}
               disabled={!input.trim() || isLoading}
               className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background: themeColor }}
@@ -393,10 +468,10 @@ export function WidgetApp({
       </main>
       <button
         type="button"
-        aria-label="关闭客服窗口"
-        title="关闭"
+        aria-label={uiText.close}
+        title={uiText.close}
         onClick={() => setIsOpen(false)}
-        className="relative grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-white text-white shadow-[0_12px_28px_rgba(15,23,42,0.18),0_0_0_8px_rgba(47,125,246,0.08)] ring-1 ring-black/[0.06] transition hover:scale-[1.04]"
+        className="relative grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-white text-white ring-1 ring-black/[0.06] transition hover:scale-[1.04]"
       >
         <span className="grid h-10 w-10 place-items-center rounded-full" style={{ background: themeColor }}>
           <X className="h-5 w-5" />
@@ -408,6 +483,7 @@ export function WidgetApp({
 
 async function readMessageStream(
   response: Response,
+  fallbackErrorMessage: string,
   handlers: {
     onStatus: (message: string) => void;
     onDelta: (content: string) => void;
@@ -416,7 +492,7 @@ async function readMessageStream(
   },
 ) {
   if (!response.body) {
-    throw new Error("AI 回复失败，请稍后再试。");
+    throw new Error(fallbackErrorMessage);
   }
 
   const reader = response.body.getReader();
@@ -481,14 +557,20 @@ function handleMessageStreamEvent(
 
 function LauncherButton({
   config,
+  launcherStyle,
+  copy,
+  uiText,
   onOpen,
 }: {
   config: WidgetConfig | null;
+  launcherStyle: WidgetConfig["launcherStyle"];
+  copy: ReturnType<typeof buildBaseWidgetCopy>;
+  uiText: (typeof WIDGET_UI_TEXT)[keyof typeof WIDGET_UI_TEXT];
   onOpen: () => void;
 }) {
-  const style = config?.launcherStyle || "vertical";
+  const style = launcherStyle;
   const themeColor = config?.themeColor || "#16a34a";
-  const text = config?.launcherText || "咨询方案";
+  const text = copy.launcherText;
   const animation = config?.launcherAnimation || "pulse";
   const animationClass =
     animation === "bounce"
@@ -502,7 +584,7 @@ function LauncherButton({
       <button
         type="button"
         onClick={onOpen}
-        className={`group fixed bottom-4 right-4 flex h-16 w-[244px] items-center gap-3 overflow-hidden rounded-full border bg-white px-4 text-left text-stone-900 shadow-[0_8px_18px_rgba(15,23,42,0.1)] transition duration-300 hover:-translate-y-0.5 active:translate-y-0 ${animationClass}`}
+        className={`group fixed bottom-4 right-4 flex h-16 w-[244px] items-center gap-3 overflow-hidden rounded-full border bg-white px-4 text-left text-stone-900 shadow-[0_5px_14px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-0.5 active:translate-y-0 ${animationClass}`}
         style={{
           borderColor: `color-mix(in srgb, ${themeColor} 28%, white)`,
         }}
@@ -513,7 +595,7 @@ function LauncherButton({
         </span>
         <span className="relative z-10 min-w-0">
           <span className="block truncate text-base font-semibold">{text}</span>
-          <span className="mt-0.5 block text-xs text-stone-500">在线咨询</span>
+          <span className="mt-0.5 block text-xs text-stone-500">{uiText.onlineConsult}</span>
         </span>
       </button>
     );
@@ -524,7 +606,7 @@ function LauncherButton({
       <button
         type="button"
         onClick={onOpen}
-        className={`fixed bottom-2 right-2 grid h-[52px] w-[52px] place-items-center rounded-full border border-white/90 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.14)] transition duration-200 hover:scale-[1.04] ${animationClass}`}
+        className={`fixed bottom-2 right-2 grid h-[52px] w-[52px] place-items-center rounded-full border border-white/90 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition duration-200 hover:scale-[1.04] ${animationClass}`}
       >
         <PulseRing enabled={animation === "pulse"} color={themeColor} rounded="999px" />
         <MascotAvatar imageUrl={config?.launcherImageUrl} color={themeColor} />
@@ -542,7 +624,7 @@ function LauncherButton({
     <button
       type="button"
       onClick={onOpen}
-      className={`fixed bottom-4 right-4 flex h-[154px] w-16 flex-col items-center justify-center gap-2.5 rounded-full border bg-white text-stone-900 shadow-[0_5px_12px_rgba(15,23,42,0.07)] transition duration-200 hover:-translate-y-1 ${animationClass}`}
+      className={`fixed bottom-4 right-4 flex h-[154px] w-16 flex-col items-center justify-center gap-2.5 rounded-full border bg-white text-stone-900 shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition duration-200 hover:-translate-y-1 ${animationClass}`}
       style={{
         borderColor: `color-mix(in srgb, ${themeColor} 24%, transparent)`,
       }}
@@ -571,6 +653,10 @@ function LauncherButton({
   );
 }
 
+function normalizeLauncherStyle(style?: string | null): WidgetConfig["launcherStyle"] | "" {
+  return style === "pill" || style === "vertical" || style === "mascot" ? style : "";
+}
+
 function MessageContent({
   content,
   role,
@@ -593,7 +679,7 @@ function MessageContent({
           return (
             <div key={`${block.type}-${index}`} className="flex items-center gap-2 pt-0.5 text-sm font-semibold text-stone-950">
               <span className="h-3.5 w-1 rounded-full" style={{ background: themeColor }} />
-              <span>{renderInlineMarkdown(block.text, `${index}-heading`)}</span>
+              <span>{renderInlineMarkdown(block.text, `${index}-heading`, themeColor)}</span>
             </div>
           );
         }
@@ -604,7 +690,7 @@ function MessageContent({
               {block.items.map((item, itemIndex) => (
                 <li key={`${index}-${itemIndex}`} className="flex gap-2 rounded-lg bg-stone-50/80 px-3 py-2">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: themeColor }} />
-                  <span>{renderInlineMarkdown(item, `${index}-${itemIndex}`)}</span>
+                  <span>{renderInlineMarkdown(item, `${index}-${itemIndex}`, themeColor)}</span>
                 </li>
               ))}
             </ul>
@@ -613,7 +699,7 @@ function MessageContent({
 
         return (
           <p key={`${block.type}-${index}`} className="text-stone-700">
-            {renderInlineMarkdown(block.text, `${index}-paragraph`)}
+            {renderInlineMarkdown(block.text, `${index}-paragraph`, themeColor)}
           </p>
         );
       })}
@@ -679,18 +765,168 @@ function parseAssistantMessage(content: string): AssistantMessageBlock[] {
   return blocks.length > 0 ? blocks : [{ type: "paragraph", text: content }];
 }
 
-function renderInlineMarkdown(text: string, keyPrefix: string) {
+type ContactTokenMatch = {
+  start: number;
+  end: number;
+  value: string;
+};
+
+function renderInlineMarkdown(text: string, keyPrefix: string, themeColor: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
     const strong = part.match(/^\*\*(.+)\*\*$/);
     if (strong) {
       return (
         <strong key={`${keyPrefix}-strong-${index}`} className="font-semibold text-stone-950">
-          {strong[1]}
+          {renderTextWithContactTokens(strong[1], `${keyPrefix}-strong-${index}`, themeColor)}
         </strong>
       );
     }
-    return <span key={`${keyPrefix}-text-${index}`}>{stripMarkdown(part)}</span>;
+    return <span key={`${keyPrefix}-text-${index}`}>{renderTextWithContactTokens(stripMarkdown(part), `${keyPrefix}-text-${index}`, themeColor)}</span>;
   });
+}
+
+function renderTextWithContactTokens(text: string, keyPrefix: string, themeColor: string) {
+  const matches = findContactTokenMatches(text);
+  if (matches.length === 0) {
+    return text;
+  }
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+
+  matches.forEach((match, index) => {
+    if (match.start > cursor) {
+      nodes.push(text.slice(cursor, match.start));
+    }
+
+    nodes.push(
+      <ContactCopyToken
+        key={`${keyPrefix}-contact-${index}-${match.value}`}
+        value={match.value}
+        themeColor={themeColor}
+      />,
+    );
+    cursor = match.end;
+  });
+
+  if (cursor < text.length) {
+    nodes.push(text.slice(cursor));
+  }
+
+  return nodes;
+}
+
+function findContactTokenMatches(text: string) {
+  const matches: ContactTokenMatch[] = [];
+  const addMatch = (start: number, end: number, value: string) => {
+    const normalizedValue = value.trim().replace(/[),.;，。；、]+$/g, "");
+    const trimStartOffset = value.indexOf(normalizedValue);
+    if (!normalizedValue || normalizedValue.length < 3) {
+      return;
+    }
+
+    matches.push({
+      start: start + Math.max(0, trimStartOffset),
+      end: start + Math.max(0, trimStartOffset) + normalizedValue.length,
+      value: normalizedValue,
+    });
+  };
+
+  const labeledContactPattern =
+    /((?:WeChat\s*ID|WeChat|微信号|微信|WX|WhatsApp|Line|Email|E-mail|邮箱|电话|手机)\s*(?:账号|号码|号|ID)?\s*(?:is|为|是|:|：)?\s*)([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|[A-Z][-_A-Z0-9]{4,31}|\+?\d[\d\s().-]{6,}\d)/gi;
+  for (const match of text.matchAll(labeledContactPattern)) {
+    const prefix = match[1] || "";
+    const value = match[2] || "";
+    addMatch((match.index ?? 0) + prefix.length, (match.index ?? 0) + prefix.length + value.length, value);
+  }
+
+  for (const match of text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)) {
+    addMatch(match.index ?? 0, (match.index ?? 0) + match[0].length, match[0]);
+  }
+
+  for (const match of text.matchAll(/(?<![\w+])\+?\d[\d\s().-]{6,}\d(?!\w)/g)) {
+    const digits = match[0].replace(/\D/g, "");
+    if (digits.length >= 7) {
+      addMatch(match.index ?? 0, (match.index ?? 0) + match[0].length, match[0]);
+    }
+  }
+
+  return dedupeContactTokenMatches(matches);
+}
+
+function dedupeContactTokenMatches(matches: ContactTokenMatch[]) {
+  const sorted = [...matches].sort((a, b) => a.start - b.start || b.end - a.end);
+  const result: ContactTokenMatch[] = [];
+
+  for (const match of sorted) {
+    const overlaps = result.some((item) => match.start < item.end && match.end > item.start);
+    if (!overlaps) {
+      result.push(match);
+    }
+  }
+
+  return result;
+}
+
+function ContactCopyToken({
+  value,
+  themeColor,
+}: {
+  value: string;
+  themeColor: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyValue() {
+    try {
+      await copyToClipboard(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <span
+      className="mx-0.5 inline-flex max-w-full translate-y-[1px] items-center gap-1.5 rounded-full border bg-white px-2 py-0.5 align-baseline text-[12px] font-bold leading-5 shadow-[0_4px_12px_rgba(15,23,42,0.06)]"
+      style={{
+        borderColor: `color-mix(in srgb, ${themeColor} 24%, white)`,
+        color: themeColor,
+      }}
+    >
+      <span className="min-w-0 select-all truncate">{value}</span>
+      <button
+        type="button"
+        aria-label={`复制 ${value}`}
+        title={copied ? "已复制" : "复制"}
+        onClick={(event) => {
+          event.stopPropagation();
+          void copyValue();
+        }}
+        className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-500 transition hover:bg-stone-200 hover:text-stone-800"
+      >
+        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+      </button>
+    </span>
+  );
+}
+
+async function copyToClipboard(value: string) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
 }
 
 function stripMarkdown(text: string) {

@@ -4,12 +4,14 @@ import { z } from "zod";
 
 import { conversations, getDb, sites, tenants } from "@/db";
 import { getDemoConversationId, isDemoMode } from "@/lib/demo-mode";
+import { DEFAULT_WIDGET_LOCALE, normalizeWidgetLocale } from "@/lib/widget-i18n";
 
 const createConversationSchema = z.object({
   siteId: z.string().uuid(),
   tenantId: z.string().uuid().optional(),
   visitorId: z.string().min(1).max(200),
   conversationId: z.string().uuid().optional(),
+  locale: z.string().max(20).optional().nullable(),
   pageUrl: z.string().max(2000).optional().nullable(),
   referrer: z.string().max(2000).optional().nullable(),
 });
@@ -49,6 +51,8 @@ export async function POST(request: NextRequest) {
     tenantId = tenant.id;
   }
 
+  const locale = normalizeWidgetLocale(body.locale) || normalizeWidgetLocale(site.defaultLocale) || DEFAULT_WIDGET_LOCALE;
+
   if (body.conversationId) {
     const [existing] = await db
       .select()
@@ -77,6 +81,7 @@ export async function POST(request: NextRequest) {
       visitorId: body.visitorId,
       pageUrl: body.pageUrl,
       referrer: body.referrer,
+      locale,
       updatedAt: sql`now()`,
     })
     .returning();

@@ -131,6 +131,22 @@ function getChatBaseUrl() {
 function fakeAnswer(messages: ChatMessage[]) {
   const userQuestion = [...messages].reverse().find((message) => message.role === "user")?.content ?? "";
   const context = messages.find((message) => message.role === "system")?.content ?? "";
+  if (context.includes("English")) {
+    const sourceHint = context.includes("知识库片段")
+      ? "I have prepared this based on the current knowledge base materials."
+      : "There are no available knowledge base materials right now.";
+
+    return `${sourceHint}\n\nFor "${userQuestion.slice(0, 80)}", I recommend confirming the key details against the website materials first. If you would like a more specific plan or quote, you can leave your contact details and we will arrange a follow-up.`;
+  }
+
+  if (context.includes("繁體中文")) {
+    const sourceHint = context.includes("知识库片段")
+      ? "我已根據目前知識庫資料整理了回覆。"
+      : "目前沒有可用知識庫資料。";
+
+    return `${sourceHint}\n\n關於「${userQuestion.slice(0, 80)}」，建議先基於官網資料確認核心資訊；如果您希望取得更具體的方案或報價，可以留下聯絡方式，我們會安排同事繼續溝通。`;
+  }
+
   const sourceHint = context.includes("知识库片段")
     ? "我已根据当前知识库资料整理了答复。"
     : "当前没有可用知识库资料。";

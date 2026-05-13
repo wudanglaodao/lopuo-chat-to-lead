@@ -1,16 +1,19 @@
 import { and, eq, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 
 import { conversations, getDb, leads, messages } from "@/db";
 import { extractContact } from "@/lib/contact";
 import { buildDemoAssistantMessage, isDemoMode } from "@/lib/demo-mode";
+import { buildLeadFallbackSummary, updateLeadSummary } from "@/lib/leads";
 import { answerQuestion, type TimingTracker } from "@/lib/rag";
+import { DEFAULT_WIDGET_LOCALE, WIDGET_UI_TEXT, normalizeWidgetLocale } from "@/lib/widget-i18n";
 
 const sendMessageSchema = z.object({
   siteId: z.string().uuid(),
   message: z.string().min(1).max(3000),
   stream: z.boolean().optional(),
+  locale: z.string().max(20).optional().nullable(),
 });
 
 type MessagePayload = {
@@ -44,18 +47,20 @@ export async function POST(
     body.stream === true || request.headers.get("accept")?.includes("text/event-stream");
 
   if (isDemoMode()) {
-    const payload = buildDemoPayload(body.message, shouldSaveLead, leadPrompt);
+    const locale = normalizeWidgetLocale(body.locale) || DEFAULT_WIDGET_LOCALE;
+    const payload = buildDemoPayload(body.message, shouldSaveLead, leadPrompt, locale);
     if (wantsStream) {
       return createEventStream(async (send) => {
-        send({ type: "status", message: "正在整理演示回答" });
+        send({ type: "status", message: getStatusText(locale, "demo") });
         await streamText(payload.message.content, (content) => send({ type: "delta", content }));
         send({ type: "done", ...payload });
-      });
+      }, WIDGET_UI_TEXT[locale].answerFailed);
     }
     return NextResponse.json(payload);
   }
 
   if (wantsStream) {
+    const streamLocale = normalizeWidgetLocale(body.locale) || DEFAULT_WIDGET_LOCALE;
     return createEventStream(async (send) => {
       const timing = createTimingTracker({
         conversationId: id,
@@ -63,7 +68,8 @@ export async function POST(
         mode: "stream",
       });
 
-      send({ type: "status", message: "正在理解问题" });
+      const locale = streamLocale;
+      send({ type: "status", message: getStatusText(locale, "thinking") });
       try {
         const payload = await processMessage({
           id,
@@ -79,7 +85,7 @@ export async function POST(
       } finally {
         timing.summary();
       }
-    });
+    }, WIDGET_UI_TEXT[streamLocale].answerFailed);
   }
 
   const timing = createTimingTracker({
@@ -140,46 +146,64 @@ async function processMessage({
     throw new ResponseError("Conversation not found.", 404);
   }
 
-  await timing.track("db.insert_user_message", () =>
-    db.insert(messages).values({
-      customerId: conversation.customerId,
-      tenantId: conversation.tenantId,
-      siteId: conversation.siteId,
-      conversationId: conversation.id,
-      role: "user",
-      content: body.message,
-    }),
+  const locale =
+    normalizeWidgetLocale(body.locale) ||
+    normalizeWidgetLocale(conversation.locale) ||
+    DEFAULT_WIDGET_LOCALE;
+
+  const [userMessage] = await timing.track("db.insert_user_message", () =>
+    db
+      .insert(messages)
+      .values({
+        customerId: conversation.customerId,
+        tenantId: conversation.tenantId,
+        siteId: conversation.siteId,
+        conversationId: conversation.id,
+        role: "user",
+        content: body.message,
+      })
+      .returning({ id: messages.id }),
   );
 
-  onStatus?.("正在检索知识库");
+  onStatus?.(getStatusText(locale, "retrieving"));
   const result = await answerQuestion({
     customerId: conversation.customerId,
     tenantId: conversation.tenantId,
     siteId: conversation.siteId,
     conversationId: conversation.id,
     question: body.message,
+    locale,
+    excludeMessageId: userMessage.id,
     timing,
     onToken,
   });
 
-  let leadSaved = false;
-  if (shouldSaveLead) {
-    await timing.track("db.insert_lead", () =>
-      db.insert(leads).values({
-        customerId: conversation.customerId,
-        tenantId: conversation.tenantId,
-        siteId: conversation.siteId,
-        conversationId: conversation.id,
-        phone: contact.phone,
-        wechat: contact.wechat,
-        email: contact.email,
-        requirement: body.message,
-      }),
-    );
-    leadSaved = true;
-  }
+  const leadPromise = shouldSaveLead
+    ? timing.track("db.insert_lead", () =>
+      db
+        .insert(leads)
+        .values({
+          customerId: conversation.customerId,
+          tenantId: conversation.tenantId,
+          siteId: conversation.siteId,
+          conversationId: conversation.id,
+          phone: contact.phone,
+          wechat: contact.wechat,
+          email: contact.email,
+          requirement: body.message,
+          summary: buildLeadFallbackSummary({
+            ...contact,
+            requirement: body.message,
+            recentUserMessage: body.message,
+          }),
+          summaryModel: "fallback",
+          summaryUpdatedAt: new Date(),
+        })
+        .returning({ id: leads.id }),
+    )
+    : Promise.resolve(null);
 
-  const [assistantMessage] = await timing.track("db.insert_assistant_message", () =>
+  const assistantPromise = timing.track("db.insert_assistant_message", () =>
     db
       .insert(messages)
       .values({
@@ -196,6 +220,32 @@ async function processMessage({
       })
       .returning(),
   );
+  const [[assistantMessage], savedLeadRows] = await Promise.all([assistantPromise, leadPromise]);
+  const savedLead = savedLeadRows?.[0];
+  const leadSaved = shouldSaveLead;
+
+  if (savedLead) {
+    after(async () => {
+      try {
+        await updateLeadSummary(savedLead.id, {
+          customerId: conversation.customerId,
+          tenantId: conversation.tenantId,
+          siteId: conversation.siteId,
+          conversationId: conversation.id,
+          phone: contact.phone,
+          wechat: contact.wechat,
+          email: contact.email,
+          requirement: body.message,
+          recentUserMessage: body.message,
+        });
+      } catch (error) {
+        console.warn("[lead.summary.update.failed]", {
+          leadId: savedLead.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    });
+  }
 
   await timing.track("db.update_conversation", () =>
     db
@@ -222,19 +272,35 @@ async function processMessage({
 }
 
 function hasLeadIntent(message: string) {
-  return /报价|价格|多少钱|收费|预算|方案|顾问|联系|预约|咨询|合作|上线|周期|演示|试用|购买|采购|需求/.test(message);
+  return /报价|報價|价格|價格|多少钱|多少錢|收费|收費|预算|預算|方案|顾问|顧問|联系|聯絡|预约|預約|咨询|諮詢|合作|上线|上線|周期|週期|演示|試用|试用|购买|購買|采购|採購|需求|price|pricing|quote|budget|plan|consult|contact|call|demo|trial|buy|purchase|requirement/i.test(message);
+}
+
+function getStatusText(locale: ReturnType<typeof normalizeWidgetLocale> | typeof DEFAULT_WIDGET_LOCALE, status: "demo" | "thinking" | "retrieving") {
+  const uiText = WIDGET_UI_TEXT[locale || DEFAULT_WIDGET_LOCALE];
+  if (status === "retrieving") {
+    if (locale === "en") return "Searching the knowledge base";
+    if (locale === "zh-TW") return "正在檢索知識庫";
+    return "正在检索知识库";
+  }
+  if (status === "demo") {
+    if (locale === "en") return "Preparing the demo reply";
+    if (locale === "zh-TW") return "正在整理演示回覆";
+    return "正在整理演示回答";
+  }
+  return uiText.thinking;
 }
 
 function buildDemoPayload(
   message: string,
   leadSaved: boolean,
   leadPrompt: boolean,
+  locale: string,
 ): MessagePayload {
   return {
     message: {
       id: crypto.randomUUID(),
       role: "assistant",
-      content: buildDemoAssistantMessage(message),
+      content: buildDemoAssistantMessage(message, locale),
       sources: [
         {
           id: "demo-source",
@@ -250,7 +316,10 @@ function buildDemoPayload(
   };
 }
 
-function createEventStream(run: (send: (event: StreamEvent) => void) => Promise<void>) {
+function createEventStream(
+  run: (send: (event: StreamEvent) => void) => Promise<void>,
+  fallbackErrorMessage: string,
+) {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -262,7 +331,7 @@ function createEventStream(run: (send: (event: StreamEvent) => void) => Promise<
       try {
         await run(send);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "AI 回复失败，请稍后再试。";
+        const message = error instanceof Error ? error.message : fallbackErrorMessage;
         send({ type: "error", message });
         console.error("[message-stream.error]", error);
       } finally {

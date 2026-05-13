@@ -11,6 +11,7 @@ import {
   buildSensitiveBusinessMessage,
   isSensitiveBusinessQuestion,
 } from "@/lib/safety";
+import { normalizeWidgetLocale } from "@/lib/widget-i18n";
 
 export const DEMO_SITE_ID = "11111111-1111-4111-8111-111111111111";
 export const DEMO_CUSTOMER_ID = "00000000-0000-0000-0000-000000000001";
@@ -49,6 +50,9 @@ export function getDemoWidgetConfig({
     suggestedQuestions: DEFAULT_SUGGESTED_QUESTIONS,
     showSources: true,
     collectLeadEnabled: true,
+    multilingualEnabled: true,
+    defaultLocale: "zh-CN",
+    enabledLocales: ["zh-CN", "zh-TW", "en"],
     aiTone: DEFAULT_AI_TONE,
     toneKeywords: DEFAULT_TONE_KEYWORDS,
     businessFlow: DEFAULT_BUSINESS_FLOW,
@@ -59,13 +63,35 @@ export function getDemoConversationId() {
   return "demo-conversation";
 }
 
-export function buildDemoAssistantMessage(message: string) {
+export function buildDemoAssistantMessage(message: string, locale = "zh-CN") {
+  const normalizedLocale = normalizeWidgetLocale(locale) || "zh-CN";
+
   if (isSensitiveBusinessQuestion(message)) {
-    return buildSensitiveBusinessMessage();
+    return buildSensitiveBusinessMessage(normalizedLocale);
   }
 
   if (/不知道|不存在|没有|随便问/i.test(message)) {
-    return buildLowConfidenceMessage();
+    return buildLowConfidenceMessage(normalizedLocale);
+  }
+
+  if (normalizedLocale === "en") {
+    return [
+      "This is a simulated reply in Lopuo Signal demo mode.",
+      "",
+      `For "${message.slice(0, 80)}", the AI sales assistant would first organize an answer from the customer's knowledge base. For pricing, partnership details, or delivery commitments, it would naturally invite the visitor to leave contact details so sales can follow up.`,
+      "",
+      "After the database, content sources, and model key are configured, this will switch to real retrieval plus LLM replies.",
+    ].join("\n");
+  }
+
+  if (normalizedLocale === "zh-TW") {
+    return [
+      "這是 Lopuo Signal 演示模式下的模擬回覆。",
+      "",
+      `關於「${message.slice(0, 80)}」，AI 行銷助手會先基於客戶知識庫整理答案；如果問題涉及報價、合作細節或交付承諾，會自然引導訪客留下聯絡方式，由銷售繼續跟進。`,
+      "",
+      "配置資料庫、素材庫和模型 Key 後，這裡會切換為真實檢索 + 大模型回覆。",
+    ].join("\n");
   }
 
   return [
