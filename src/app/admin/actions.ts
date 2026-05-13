@@ -96,21 +96,41 @@ export async function createTenantAction(formData: FormData) {
   revalidatePath("/admin/settings/tenants");
 }
 
-export async function syncKnowledgeSourceAction(formData: FormData) {
+export type KnowledgeSyncState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+export async function syncKnowledgeSourceAction(
+  _state: KnowledgeSyncState,
+  formData: FormData,
+): Promise<KnowledgeSyncState> {
   const session = await requireAdmin();
   const sourceId = String(formData.get("sourceId") || "");
 
   if (!sourceId) {
-    return;
+    return { status: "error", message: "缺少知识来源 ID。" };
   }
 
   if (isDemoMode()) {
     revalidatePath("/admin/knowledge");
-    return;
+    return { status: "success", message: "预览模式不会写入数据库。" };
   }
 
-  await syncKnowledgeSource(sourceId, session.customerId);
-  revalidatePath("/admin/knowledge");
+  try {
+    const result = await syncKnowledgeSource(sourceId, session.customerId);
+    return {
+      status: "success",
+      message: `同步完成：${result.pageCount} 个页面，${result.chunkCount} 个片段。`,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "同步失败，请稍后重试。",
+    };
+  } finally {
+    revalidatePath("/admin/knowledge");
+  }
 }
 
 export async function updateSettingsAction(formData: FormData) {

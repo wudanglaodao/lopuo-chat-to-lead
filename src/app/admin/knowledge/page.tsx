@@ -1,10 +1,11 @@
 import { and, desc, eq } from "drizzle-orm";
 
-import { addKnowledgeSourceAction, syncKnowledgeSourceAction } from "@/app/admin/actions";
+import { addKnowledgeSourceAction } from "@/app/admin/actions";
 import { getDb, knowledgeSources } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { KnowledgeSyncForm } from "@/components/admin/knowledge-sync-form";
 import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 
 export const dynamic = "force-dynamic";
@@ -96,17 +97,12 @@ export default async function KnowledgePage({
               {source.lastError ? <div className="mt-2 text-xs font-semibold text-[#ff5a4f]">{source.lastError}</div> : null}
             </div>
             <div>
-              <span className="rounded-full bg-[#edf8e8] px-3 py-1.5 text-xs font-bold text-[#6bb956]">{source.status}</span>
+              <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${getStatusTone(source.status)}`}>{source.status}</span>
             </div>
-            <div className="text-xs font-semibold text-[#777e89]">
-              {source.lastSyncedAt ? source.lastSyncedAt.toLocaleString("zh-CN") : "尚未同步"}
+            <div className="text-xs font-semibold leading-5 text-[#777e89]">
+              {formatSyncTime(source)}
             </div>
-            <form action={syncKnowledgeSourceAction}>
-              <input type="hidden" name="sourceId" value={source.id} />
-              <button className="rounded-[14px] border border-black/[0.07] bg-white px-3 py-2 text-xs font-bold transition hover:border-[#2f7df6]/30 hover:text-[#2f7df6] hover:shadow-sm dark:border-white/10 dark:bg-white/8 dark:text-white dark:hover:border-[#2f7df6]/50">
-                同步
-              </button>
-            </form>
+            <KnowledgeSyncForm sourceId={source.id} />
           </div>
         ))}
         {sources.length === 0 ? (
@@ -115,4 +111,28 @@ export default async function KnowledgePage({
       </section>
     </AdminShell>
   );
+}
+
+function getStatusTone(status: string) {
+  if (status === "failed") return "bg-[#ffe8e5] text-[#ff5a4f] dark:bg-[#ff5a4f]/18 dark:text-[#ff9a92]";
+  if (status === "syncing") return "bg-[#e8f1ff] text-[#2f7df6] dark:bg-[#2f7df6]/18 dark:text-[#8bbcff]";
+  if (status === "pending") return "bg-[#fff4df] text-[#9b5a17] dark:bg-[#ffb48b]/16 dark:text-[#ffd2b7]";
+  return "bg-[#edf8e8] text-[#6bb956] dark:bg-[#6bb956]/18 dark:text-[#a5dd95]";
+}
+
+function formatSyncTime(source: {
+  status: string;
+  lastSyncedAt?: Date | null;
+  updatedAt?: Date | null;
+}) {
+  if (source.lastSyncedAt) {
+    return source.lastSyncedAt.toLocaleString("zh-CN");
+  }
+  if (source.status === "failed" && source.updatedAt) {
+    return `失败于 ${source.updatedAt.toLocaleString("zh-CN")}`;
+  }
+  if (source.status === "syncing" && source.updatedAt) {
+    return `开始于 ${source.updatedAt.toLocaleString("zh-CN")}`;
+  }
+  return "尚未同步";
 }
