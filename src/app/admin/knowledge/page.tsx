@@ -120,29 +120,7 @@ function getStatusTone(status: string) {
   return "bg-[#edf8e8] text-[#6bb956] dark:bg-[#6bb956]/18 dark:text-[#a5dd95]";
 }
 
-function formatSyncTime(source: {
-  status: string;
-  lastSyncedAt?: Date | null;
-  updatedAt?: Date | null;
-}) {
-  if (source.status === "syncing") {
-    return (
-      <>
-        <div>{source.updatedAt ? `开始于 ${source.updatedAt.toLocaleString("zh-CN")}` : "同步中"}</div>
-        {source.lastSyncedAt ? <div className="text-[#9aa0aa]">上次成功 {source.lastSyncedAt.toLocaleString("zh-CN")}</div> : null}
-      </>
-    );
-  }
-
-  if (source.status === "failed") {
-    return (
-      <>
-        <div>{source.updatedAt ? `失败于 ${source.updatedAt.toLocaleString("zh-CN")}` : "同步失败"}</div>
-        {source.lastSyncedAt ? <div className="text-[#9aa0aa]">上次成功 {source.lastSyncedAt.toLocaleString("zh-CN")}</div> : null}
-      </>
-    );
-  }
-
+function formatSyncTime(source: { lastSyncedAt?: Date | null }) {
   if (source.lastSyncedAt) {
     return source.lastSyncedAt.toLocaleString("zh-CN");
   }
