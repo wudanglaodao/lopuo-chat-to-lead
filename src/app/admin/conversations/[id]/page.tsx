@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import { conversations, leads, messages, tenants } from "@/db";
 import { getDb } from "@/db";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { ConversationDeleteForm } from "@/components/admin/conversation-delete-form";
 import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
@@ -189,6 +190,15 @@ export default async function ConversationDetailPage({
                 <InfoItem label="AI 回复数" value={String(conversation.messages.filter((message) => message.role === "assistant").length)} />
                 <InfoItem label="未命中消息" value={String(conversation.messages.filter((message) => message.isMiss).length)} />
                 <InfoItem label="最近模型" value={conversation.messages.findLast((message) => message.model)?.model || "未记录"} />
+              </div>
+            </SideCard>
+
+            <SideCard title="清理会话">
+              <div className="space-y-3">
+                <p className="text-sm font-semibold leading-6 text-[#777e89] dark:text-white/55">
+                  删除后会同步清理这条会话下的消息记录和线索，适合清理测试、误触或垃圾数据。
+                </p>
+                <ConversationDeleteForm conversationId={conversation.id} returnTo={backHref} variant="button" />
               </div>
             </SideCard>
           </aside>

@@ -4,7 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getDb, sites, tenants } from "@/db";
+import { conversations, getDb, sites, tenants } from "@/db";
 import { clearSessionCookie, requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { addKnowledgeSource, syncKnowledgeSource } from "@/lib/knowledge";
@@ -133,6 +133,55 @@ export async function syncKnowledgeSourceAction(
   }
 }
 
+export type ConversationDeleteState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+export async function deleteConversationAction(
+  _state: ConversationDeleteState,
+  formData: FormData,
+): Promise<ConversationDeleteState> {
+  const session = await requireAdmin();
+  const conversationId = String(formData.get("conversationId") || "").trim();
+  const returnTo = normalizeAdminReturnTo(String(formData.get("returnTo") || "").trim());
+
+  if (!conversationId) {
+    return { status: "error", message: "缺少会话 ID。" };
+  }
+
+  if (isDemoMode()) {
+    revalidateConversationPaths();
+    if (returnTo) {
+      redirect(returnTo);
+    }
+    return { status: "success", message: "预览模式不会删除数据。" };
+  }
+
+  const [deleted] = await getDb()
+    .delete(conversations)
+    .where(
+      and(
+        eq(conversations.id, conversationId),
+        eq(conversations.customerId, session.customerId),
+        eq(conversations.siteId, session.siteId),
+      ),
+    )
+    .returning({ id: conversations.id });
+
+  revalidateConversationPaths();
+
+  if (!deleted) {
+    return { status: "error", message: "会话不存在或无权删除。" };
+  }
+
+  if (returnTo) {
+    redirect(returnTo);
+  }
+
+  return { status: "success", message: "已删除会话及关联消息、线索。" };
+}
+
 export async function updateSettingsAction(formData: FormData) {
   const session = await requireAdmin();
   const section = String(formData.get("settingsSection") || "all");
@@ -216,4 +265,18 @@ export async function updateSettingsAction(formData: FormData) {
 
   revalidatePath("/admin/settings");
   revalidatePath("/admin/settings/tenants");
+}
+
+function revalidateConversationPaths() {
+  revalidatePath("/admin");
+  revalidatePath("/admin/conversations");
+  revalidatePath("/admin/conversations/leads");
+}
+
+function normalizeAdminReturnTo(value: string) {
+  if (!value) return "";
+  if (value === "/admin/conversations" || value.startsWith("/admin/conversations?")) {
+    return value;
+  }
+  return "";
 }

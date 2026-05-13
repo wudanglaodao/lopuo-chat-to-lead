@@ -8,6 +8,7 @@ import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { ConversationDeleteForm } from "@/components/admin/conversation-delete-form";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +90,7 @@ export default async function ConversationsPage({
 
         <div className="mt-7 overflow-x-auto">
           <div className="min-w-[1120px]">
-            <div className="grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_86px] gap-4 border-b border-black/[0.06] px-2 pb-4 text-sm font-bold text-[#777e89] dark:border-white/10 dark:text-white/45">
+            <div className="grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_112px] gap-4 border-b border-black/[0.06] px-2 pb-4 text-sm font-bold text-[#777e89] dark:border-white/10 dark:text-white/45">
               <div />
               <div>访客</div>
               <div>场景</div>
@@ -108,7 +109,7 @@ export default async function ConversationsPage({
                 return (
                   <div
                     key={conversation.id}
-                    className="grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_86px] items-center gap-4 px-2 py-4 text-sm transition hover:bg-[#f7f7f8] dark:hover:bg-white/[0.05]"
+                    className="grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_112px] items-center gap-4 px-2 py-4 text-sm transition hover:bg-[#f7f7f8] dark:hover:bg-white/[0.05]"
                   >
                     <div>
                       <span className="grid h-7 w-7 place-items-center rounded-lg border-2 border-[#d3d7de] dark:border-white/20">
@@ -144,13 +145,16 @@ export default async function ConversationsPage({
                       <div className="truncate font-bold text-[#1f2024] dark:text-white">{lead?.company || "未留公司"}</div>
                       <div className="mt-1 truncate text-sm font-semibold text-[#777e89]">{leadContact}</div>
                     </div>
-                    <Link
-                      href={`/admin/conversations/${conversation.id}${activeTenant?.id ? `?tenantId=${activeTenant.id}` : ""}`}
-                      className="ml-auto grid h-10 w-10 place-items-center rounded-full bg-[#eeeeef] text-[#777e89] transition hover:bg-[#2f7df6] hover:text-white dark:bg-white/8 dark:text-white/55 dark:hover:bg-[#2f7df6] dark:hover:text-white"
-                      aria-label="查看会话"
-                    >
-                      <ArrowUpRight className="h-5 w-5" />
-                    </Link>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Link
+                        href={`/admin/conversations/${conversation.id}${activeTenant?.id ? `?tenantId=${activeTenant.id}` : ""}`}
+                        className="grid h-10 w-10 place-items-center rounded-full bg-[#eeeeef] text-[#777e89] transition hover:bg-[#2f7df6] hover:text-white dark:bg-white/8 dark:text-white/55 dark:hover:bg-[#2f7df6] dark:hover:text-white"
+                        aria-label="查看会话"
+                      >
+                        <ArrowUpRight className="h-5 w-5" />
+                      </Link>
+                      <ConversationDeleteForm conversationId={conversation.id} />
+                    </div>
                   </div>
                 );
               })}
