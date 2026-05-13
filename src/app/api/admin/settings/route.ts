@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/auth";
 import { DEFAULT_AI_TONE, DEFAULT_BUSINESS_FLOW, DEFAULT_TONE_KEYWORDS, DEFAULT_WELCOME_TITLE } from "@/lib/defaults";
 import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 import { SUPPORTED_WIDGET_LOCALES } from "@/lib/widget-i18n";
+import { LAUNCHER_POSITIONS } from "@/lib/widget-launcher";
 
 const settingsSchema = z.object({
   defaultTenantId: z.string().uuid().optional().nullable(),
@@ -16,6 +17,7 @@ const settingsSchema = z.object({
   welcomeMessage: z.string().min(1).max(1000),
   themeColor: z.string().regex(/^#[0-9a-f]{6}$/i),
   launcherStyle: z.enum(["pill", "vertical", "mascot"]),
+  launcherPosition: z.enum(LAUNCHER_POSITIONS).default("bottom-right"),
   launcherImageUrl: z.string().url().optional().nullable().or(z.literal("")),
   launcherBadgeText: z.string().max(8).optional().nullable(),
   launcherAnimation: z.enum(["none", "pulse", "bounce", "float"]),

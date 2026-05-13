@@ -92,7 +92,7 @@ function QuickEntryMenu({ tenantId }: { tenantId?: string | null }) {
     },
     {
       title: "配置入口样式",
-      description: "调整按钮、文案、头像和主题色",
+      description: "调整按钮、位置、头像和主题色",
       href: `/admin/settings?tab=style${settingsTenantQuery}`,
       icon: Settings2,
       tone: "bg-[#ffccb0] text-[#1f2024]",

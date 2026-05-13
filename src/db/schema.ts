@@ -67,6 +67,7 @@ export const sites = pgTable(
     themeColor: text("theme_color").notNull().default("#16a34a"),
     launcherText: text("launcher_text").notNull().default("咨询方案"),
     launcherStyle: text("launcher_style").notNull().default("vertical"),
+    launcherPosition: text("launcher_position").notNull().default("bottom-right"),
     launcherImageUrl: text("launcher_image_url"),
     launcherBadgeText: text("launcher_badge_text"),
     launcherAnimation: text("launcher_animation").notNull().default("pulse"),

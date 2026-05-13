@@ -5,7 +5,14 @@ export const dynamic = "force-dynamic";
 export default async function WidgetPage({
   searchParams,
 }: {
-  searchParams: Promise<{ siteId?: string; tenantId?: string; locale?: string; previewStyle?: string; previewText?: string }>;
+  searchParams: Promise<{
+    siteId?: string;
+    tenantId?: string;
+    locale?: string;
+    previewStyle?: string;
+    previewText?: string;
+    previewPosition?: string;
+  }>;
 }) {
   const params = await searchParams;
   return (
@@ -29,6 +36,7 @@ export default async function WidgetPage({
         requestedLocale={params.locale || ""}
         previewStyle={params.previewStyle || ""}
         previewText={params.previewText || ""}
+        previewPosition={params.previewPosition || ""}
       />
     </>
   );

@@ -16,6 +16,7 @@ import {
   normalizeEnabledLocales,
   normalizeWidgetLocale,
 } from "@/lib/widget-i18n";
+import { normalizeLauncherPosition } from "@/lib/widget-launcher";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +24,14 @@ type SettingsTab = "content" | "style" | "multilingual" | "script";
 
 const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
   { id: "content", label: "对话内容", description: "欢迎语、推荐问题、留资" },
-  { id: "style", label: "入口样式", description: "按钮、头像、主题色" },
+  { id: "style", label: "入口样式", description: "按钮、头像、位置" },
   { id: "multilingual", label: "多语言", description: "默认语言、自动适配" },
   { id: "script", label: "脚本嵌入", description: "官网安装代码" },
+];
+
+const launcherPositionOptions: Array<[string, string]> = [
+  ["bottom-right", "右下角：默认停靠位置"],
+  ["bottom-left", "左下角：避开右侧悬浮元素"],
 ];
 
 export default async function SettingsPage({
@@ -49,6 +55,7 @@ export default async function SettingsPage({
   const allowedOrigins = Array.from(new Set([site.domain, `www.${site.domain.replace(/^www\./, "")}`, ...site.allowedOrigins])).join("\n");
   const defaultLocale = normalizeWidgetLocale(site.defaultLocale) || DEFAULT_WIDGET_LOCALE;
   const enabledLocales = normalizeEnabledLocales(site.enabledLocales || [], defaultLocale);
+  const launcherPosition = normalizeLauncherPosition(site.launcherPosition);
 
   return (
     <AdminShell
@@ -123,7 +130,7 @@ export default async function SettingsPage({
             {activeTab === "style" ? (
               <form action={updateSettingsAction} className="space-y-6">
                 <input type="hidden" name="settingsSection" value="style" />
-                <SettingsSection accent="#ffb48b" title="入口样式" description="控制官网右下角入口的文字、样式、头像、主题色和动效。">
+                <SettingsSection accent="#ffb48b" title="入口样式" description="控制官网入口的文字、样式、位置、头像、主题色和动效。">
                   <div className="grid gap-5 md:grid-cols-2">
                     <Field label="助手名称" name="widgetName" defaultValue={site.widgetName} />
                     <Field label="入口文案" name="launcherText" defaultValue={site.launcherText} />
@@ -157,10 +164,28 @@ export default async function SettingsPage({
                     />
                     <Field label="角标文字" name="launcherBadgeText" defaultValue={site.launcherBadgeText || ""} placeholder="例如 1、NEW、!" />
                   </div>
+                  <div className="border-t border-black/[0.06] pt-5 dark:border-white/10">
+                    <div className="mb-4">
+                      <h3 className="text-base font-bold text-[#1f2024] dark:text-white">位置设置</h3>
+                      <p className="mt-1 text-sm font-semibold text-[#777e89] dark:text-white/55">
+                        选择入口在访客页面的停靠方向；手机打开对话时仍会铺满屏幕。
+                      </p>
+                    </div>
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <Select
+                        label="入口位置"
+                        name="launcherPosition"
+                        defaultValue={launcherPosition}
+                        options={launcherPositionOptions}
+                      />
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-3">
-                    <PreviewLink href="/demo?style=pill&text=获取方案">胶囊入口预览</PreviewLink>
-                    <PreviewLink href="/demo?style=vertical">竖向入口预览</PreviewLink>
-                    <PreviewLink href="/demo?style=mascot">吉祥物入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=pill&text=获取方案&position=${launcherPosition}`}>胶囊入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=vertical&position=${launcherPosition}`}>竖向入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=mascot&position=${launcherPosition}`}>吉祥物入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-left`}>左下位置预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-right`}>右下位置预览</PreviewLink>
                   </div>
                 </SettingsSection>
                 <SaveBar />
@@ -222,7 +247,12 @@ export default async function SettingsPage({
             ) : null}
           </div>
 
-          <PreviewAside siteId={site.id} siteDomain={site.domain} launcherStyle={site.launcherStyle || "vertical"} />
+          <PreviewAside
+            siteId={site.id}
+            siteDomain={site.domain}
+            launcherStyle={site.launcherStyle || "vertical"}
+            launcherPosition={launcherPosition}
+          />
         </div>
       </div>
     </AdminShell>
@@ -259,12 +289,15 @@ function PreviewAside({
   siteId,
   siteDomain,
   launcherStyle,
+  launcherPosition,
 }: {
   siteId: string;
   siteDomain: string;
   launcherStyle: string;
+  launcherPosition: string;
 }) {
   const currentStyle = ["pill", "vertical", "mascot"].includes(launcherStyle) ? launcherStyle : "vertical";
+  const currentPosition = normalizeLauncherPosition(launcherPosition);
 
   return (
     <aside className="xl:sticky xl:top-28 xl:self-start">
@@ -283,7 +316,7 @@ function PreviewAside({
           </div>
         </div>
         <a
-          href={`/demo?style=${currentStyle}`}
+          href={`/demo?style=${currentStyle}&position=${currentPosition}`}
           target="_blank"
           rel="noreferrer"
           className="mt-4 inline-flex w-full items-center justify-center rounded-[16px] bg-[#2f7df6] px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(47,125,246,0.2)] transition hover:-translate-y-0.5 hover:bg-[#1d6ef0]"
@@ -291,9 +324,13 @@ function PreviewAside({
           打开当前预览
         </a>
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <MiniPreviewLink href="/demo?style=pill&text=获取方案">胶囊</MiniPreviewLink>
-          <MiniPreviewLink href="/demo?style=vertical">竖向</MiniPreviewLink>
-          <MiniPreviewLink href="/demo?style=mascot">头像</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=pill&text=获取方案&position=${currentPosition}`}>胶囊</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=vertical&position=${currentPosition}`}>竖向</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=mascot&position=${currentPosition}`}>头像</MiniPreviewLink>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-right`}>右下</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-left`}>左下</MiniPreviewLink>
         </div>
       </div>
     </aside>

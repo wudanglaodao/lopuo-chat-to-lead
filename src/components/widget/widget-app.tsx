@@ -9,6 +9,7 @@ import {
   localizeDefaultWidgetCopy,
   resolveWidgetLocale,
 } from "@/lib/widget-i18n";
+import { isLauncherPosition, type LauncherPosition, normalizeLauncherPosition } from "@/lib/widget-launcher";
 
 type WidgetConfig = {
   siteId: string;
@@ -16,6 +17,7 @@ type WidgetConfig = {
   widgetName: string;
   launcherText: string;
   launcherStyle: "pill" | "vertical" | "mascot";
+  launcherPosition: LauncherPosition;
   launcherImageUrl?: string | null;
   launcherBadgeText?: string | null;
   launcherAnimation: "none" | "pulse" | "bounce" | "float";
@@ -56,12 +58,14 @@ export function WidgetApp({
   requestedLocale,
   previewStyle,
   previewText,
+  previewPosition,
 }: {
   siteId: string;
   tenantId?: string;
   requestedLocale?: string;
   previewStyle?: string;
   previewText?: string;
+  previewPosition?: string;
 }) {
   const [config, setConfig] = useState<WidgetConfig | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -73,7 +77,9 @@ export function WidgetApp({
   const [showLeadPrompt, setShowLeadPrompt] = useState(false);
   const [leadSaved, setLeadSaved] = useState(false);
   const previewLauncherStyle = normalizeLauncherStyle(previewStyle);
-  const launcherStyle = config?.launcherStyle || previewLauncherStyle;
+  const previewLauncherPosition = isLauncherPosition(previewPosition) ? previewPosition : "";
+  const launcherStyle = previewLauncherStyle || config?.launcherStyle;
+  const launcherPosition = previewLauncherPosition || normalizeLauncherPosition(config?.launcherPosition);
 
   const visitorId = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -126,10 +132,11 @@ export function WidgetApp({
         type: "lopuo-ai-widget-resize",
         open: isOpen,
         launcherStyle: launcherStyle || "vertical",
+        launcherPosition,
       },
       "*",
     );
-  }, [isOpen, launcherStyle]);
+  }, [isOpen, launcherPosition, launcherStyle]);
 
   useEffect(() => {
     if (!siteId) {
@@ -142,6 +149,7 @@ export function WidgetApp({
       locale: requestedLocale || "",
       previewStyle: previewStyle || "",
       previewText: previewText || "",
+      previewPosition: previewPosition || "",
     });
 
     fetch(`/api/widget/config?${params.toString()}`)
@@ -151,7 +159,7 @@ export function WidgetApp({
       })
       .then(setConfig)
       .catch((err: Error) => setError(err.message));
-  }, [siteId, tenantId, requestedLocale, previewStyle, previewText, uiText.configLoadFailed]);
+  }, [siteId, tenantId, requestedLocale, previewStyle, previewText, previewPosition, uiText.configLoadFailed]);
 
   const ensureConversation = useCallback(async () => {
     if (conversationId) {

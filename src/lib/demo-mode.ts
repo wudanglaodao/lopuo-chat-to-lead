@@ -12,6 +12,7 @@ import {
   isSensitiveBusinessQuestion,
 } from "@/lib/safety";
 import { normalizeWidgetLocale } from "@/lib/widget-i18n";
+import { normalizeLauncherPosition } from "@/lib/widget-launcher";
 
 export const DEMO_SITE_ID = "11111111-1111-4111-8111-111111111111";
 export const DEMO_CUSTOMER_ID = "00000000-0000-0000-0000-000000000001";
@@ -25,10 +26,12 @@ export function getDemoWidgetConfig({
   siteId = DEMO_SITE_ID,
   previewStyle,
   previewText,
+  previewPosition,
 }: {
   siteId?: string;
   previewStyle?: string | null;
   previewText?: string | null;
+  previewPosition?: string | null;
 } = {}) {
   const launcherStyle = ["pill", "vertical", "mascot"].includes(previewStyle || "")
     ? (previewStyle as "pill" | "vertical" | "mascot")
@@ -41,6 +44,7 @@ export function getDemoWidgetConfig({
     widgetName: "AI 营销助手",
     launcherText: previewText || (launcherStyle === "pill" ? "获取方案" : "咨询方案"),
     launcherStyle,
+    launcherPosition: normalizeLauncherPosition(previewPosition),
     launcherImageUrl: "",
     launcherBadgeText: "1",
     launcherAnimation: "pulse",

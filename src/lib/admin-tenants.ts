@@ -102,6 +102,7 @@ function getDemoAdminSite(siteId: string, customerId: string): Site {
     themeColor: demoConfig.themeColor,
     launcherText: demoConfig.launcherText,
     launcherStyle: demoConfig.launcherStyle,
+    launcherPosition: demoConfig.launcherPosition,
     launcherImageUrl: demoConfig.launcherImageUrl,
     launcherBadgeText: demoConfig.launcherBadgeText,
     launcherAnimation: demoConfig.launcherAnimation,

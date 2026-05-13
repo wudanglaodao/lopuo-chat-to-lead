@@ -13,6 +13,7 @@ import {
   normalizeEnabledLocales,
   normalizeWidgetLocale,
 } from "@/lib/widget-i18n";
+import { normalizeLauncherPosition } from "@/lib/widget-launcher";
 
 export async function logoutAction() {
   await clearSessionCookie();
@@ -222,6 +223,7 @@ export async function updateSettingsAction(formData: FormData) {
     values.launcherText = String(formData.get("launcherText") || "咨询方案");
     values.themeColor = String(formData.get("themeColor") || "#16a34a");
     values.launcherStyle = String(formData.get("launcherStyle") || "vertical");
+    values.launcherPosition = normalizeLauncherPosition(String(formData.get("launcherPosition") || ""));
     values.launcherImageUrl = String(formData.get("launcherImageUrl") || "").trim() || null;
     values.launcherBadgeText = String(formData.get("launcherBadgeText") || "").trim() || null;
     values.launcherAnimation = String(formData.get("launcherAnimation") || "pulse");

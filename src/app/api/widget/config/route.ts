@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         siteId,
         previewStyle: request.nextUrl.searchParams.get("previewStyle"),
         previewText: request.nextUrl.searchParams.get("previewText"),
+        previewPosition: request.nextUrl.searchParams.get("previewPosition"),
       }),
     );
   }
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
     widgetName: site.widgetName,
     launcherText: site.launcherText,
     launcherStyle: site.launcherStyle,
+    launcherPosition: site.launcherPosition,
     launcherImageUrl: site.launcherImageUrl,
     launcherBadgeText: site.launcherBadgeText,
     launcherAnimation: site.launcherAnimation,
