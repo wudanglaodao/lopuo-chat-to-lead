@@ -1,7 +1,8 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
-import { useActionState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect } from "react";
 
 import { syncKnowledgeSourceAction } from "@/app/admin/actions";
 
@@ -12,6 +13,13 @@ const initialState = {
 
 export function KnowledgeSyncForm({ sourceId }: { sourceId: string }) {
   const [state, formAction, pending] = useActionState(syncKnowledgeSourceAction, initialState);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state.status !== "idle") {
+      router.refresh();
+    }
+  }, [router, state.status]);
 
   return (
     <form action={formAction} className="space-y-2">

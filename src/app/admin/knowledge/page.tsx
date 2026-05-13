@@ -125,14 +125,27 @@ function formatSyncTime(source: {
   lastSyncedAt?: Date | null;
   updatedAt?: Date | null;
 }) {
+  if (source.status === "syncing") {
+    return (
+      <>
+        <div>{source.updatedAt ? `开始于 ${source.updatedAt.toLocaleString("zh-CN")}` : "同步中"}</div>
+        {source.lastSyncedAt ? <div className="text-[#9aa0aa]">上次成功 {source.lastSyncedAt.toLocaleString("zh-CN")}</div> : null}
+      </>
+    );
+  }
+
+  if (source.status === "failed") {
+    return (
+      <>
+        <div>{source.updatedAt ? `失败于 ${source.updatedAt.toLocaleString("zh-CN")}` : "同步失败"}</div>
+        {source.lastSyncedAt ? <div className="text-[#9aa0aa]">上次成功 {source.lastSyncedAt.toLocaleString("zh-CN")}</div> : null}
+      </>
+    );
+  }
+
   if (source.lastSyncedAt) {
     return source.lastSyncedAt.toLocaleString("zh-CN");
   }
-  if (source.status === "failed" && source.updatedAt) {
-    return `失败于 ${source.updatedAt.toLocaleString("zh-CN")}`;
-  }
-  if (source.status === "syncing" && source.updatedAt) {
-    return `开始于 ${source.updatedAt.toLocaleString("zh-CN")}`;
-  }
+
   return "尚未同步";
 }
