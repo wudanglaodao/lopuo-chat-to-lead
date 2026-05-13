@@ -1,7 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { Info } from "lucide-react";
 
 import { addKnowledgeSourceAction } from "@/app/admin/actions";
-import { getDb, knowledgeSources } from "@/db";
+import { getDb, knowledgeChunks, knowledgeSources } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -9,6 +10,11 @@ import { KnowledgeSyncForm } from "@/components/admin/knowledge-sync-form";
 import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 
 export const dynamic = "force-dynamic";
+
+type KnowledgeSourceWithStats = typeof knowledgeSources.$inferSelect & {
+  chunkCount: number;
+  pageCount: number;
+};
 
 export default async function KnowledgePage({
   searchParams,
@@ -22,21 +28,14 @@ export default async function KnowledgePage({
     siteId: session.siteId,
     requestedTenantId: params.tenantId,
   });
-  const sources = isDemoMode()
+  const sources: KnowledgeSourceWithStats[] = isDemoMode()
     ? []
     : activeTenant
-      ? await getDb()
-          .select()
-          .from(knowledgeSources)
-          .where(
-            and(
-              eq(knowledgeSources.customerId, session.customerId),
-              eq(knowledgeSources.siteId, session.siteId),
-              eq(knowledgeSources.tenantId, activeTenant.id),
-            ),
-          )
-          .orderBy(desc(knowledgeSources.updatedAt))
-          .limit(100)
+      ? await getKnowledgeSourcesWithStats({
+          customerId: session.customerId,
+          siteId: session.siteId,
+          tenantId: activeTenant.id,
+        })
       : [];
 
   return (
@@ -79,17 +78,18 @@ export default async function KnowledgePage({
         </form>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-[0_18px_42px_rgba(31,32,36,0.06)] dark:border-white/10 dark:bg-[#171a20] dark:shadow-none">
-        <div className="grid grid-cols-[1fr_120px_180px_120px] gap-4 border-b border-black/[0.06] bg-[#fbfbfc] px-5 py-4 text-xs font-bold uppercase text-[#9aa0aa] dark:border-white/10 dark:bg-white/[0.04] dark:text-white/45">
+      <section className="mt-6 rounded-[28px] border border-black/[0.06] bg-white shadow-[0_18px_42px_rgba(31,32,36,0.06)] dark:border-white/10 dark:bg-[#171a20] dark:shadow-none">
+        <div className="grid grid-cols-[1fr_120px_180px_48px_120px] gap-4 rounded-t-[28px] border-b border-black/[0.06] bg-[#fbfbfc] px-5 py-4 text-xs font-bold uppercase text-[#9aa0aa] dark:border-white/10 dark:bg-white/[0.04] dark:text-white/45">
           <div>来源</div>
           <div>状态</div>
           <div>最近同步</div>
+          <div />
           <div />
         </div>
         {sources.map((source) => (
           <div
             key={source.id}
-            className="grid grid-cols-[1fr_120px_180px_120px] gap-4 border-b border-black/[0.04] px-5 py-4 text-sm last:border-0 dark:border-white/10"
+            className="grid grid-cols-[1fr_120px_180px_48px_120px] gap-4 border-b border-black/[0.04] px-5 py-4 text-sm last:border-0 dark:border-white/10"
           >
             <div className="min-w-0">
               <div className="truncate font-bold text-[#1f2024] dark:text-white">{source.title || source.url}</div>
@@ -102,6 +102,7 @@ export default async function KnowledgePage({
             <div className="text-xs font-semibold leading-5 text-[#777e89]">
               {formatSyncTime(source)}
             </div>
+            <SyncResultHint source={source} />
             <KnowledgeSyncForm sourceId={source.id} />
           </div>
         ))}
@@ -111,6 +112,66 @@ export default async function KnowledgePage({
       </section>
     </AdminShell>
   );
+}
+
+async function getKnowledgeSourcesWithStats({
+  customerId,
+  siteId,
+  tenantId,
+}: {
+  customerId: string;
+  siteId: string;
+  tenantId: string;
+}) {
+  const db = getDb();
+  const [sourceRows, statRows] = await Promise.all([
+    db
+      .select()
+      .from(knowledgeSources)
+      .where(
+        and(
+          eq(knowledgeSources.customerId, customerId),
+          eq(knowledgeSources.siteId, siteId),
+          eq(knowledgeSources.tenantId, tenantId),
+        ),
+      )
+      .orderBy(desc(knowledgeSources.updatedAt))
+      .limit(100),
+    db
+      .select({
+        sourceId: knowledgeChunks.sourceId,
+        chunkCount: sql<number>`count(*)::int`,
+        pageCount: sql<number>`count(distinct ${knowledgeChunks.url})::int`,
+      })
+      .from(knowledgeChunks)
+      .where(
+        and(
+          eq(knowledgeChunks.customerId, customerId),
+          eq(knowledgeChunks.siteId, siteId),
+          eq(knowledgeChunks.tenantId, tenantId),
+        ),
+      )
+      .groupBy(knowledgeChunks.sourceId),
+  ]);
+
+  const statsBySourceId = new Map(
+    statRows.map((row) => [
+      row.sourceId,
+      {
+        chunkCount: Number(row.chunkCount) || 0,
+        pageCount: Number(row.pageCount) || 0,
+      },
+    ]),
+  );
+
+  return sourceRows.map((source) => {
+    const stats = statsBySourceId.get(source.id);
+    return {
+      ...source,
+      chunkCount: stats?.chunkCount || 0,
+      pageCount: stats?.pageCount || 0,
+    };
+  });
 }
 
 function getStatusTone(status: string) {
@@ -126,4 +187,109 @@ function formatSyncTime(source: { lastSyncedAt?: Date | null }) {
   }
 
   return "尚未同步";
+}
+
+function SyncResultHint({ source }: { source: KnowledgeSourceWithStats }) {
+  const tone = getResultHintTone(source.status);
+  const result = getSyncResultSummary(source);
+  const title = result.lines.join("\n");
+
+  return (
+    <div className="relative flex items-start">
+      <button
+        type="button"
+        aria-label={`查看 ${source.title || source.url} 最近一次数据抓取结果`}
+        title={title}
+        className={`peer mt-0.5 grid h-7 w-7 place-items-center rounded-full border transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f7df6]/40 ${tone.button}`}
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      <div className="pointer-events-none absolute right-0 top-9 z-30 hidden w-72 rounded-[18px] border border-black/[0.08] bg-white p-4 text-left shadow-[0_18px_42px_rgba(31,32,36,0.16)] peer-hover:block peer-focus-visible:block dark:border-white/10 dark:bg-[#20242c] dark:shadow-none">
+        <div className="text-sm font-bold text-[#1f2024] dark:text-white">最近一次抓取结果</div>
+        <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${tone.badge}`}>
+          {result.label}
+        </div>
+        <div className="mt-3 space-y-1.5 text-xs font-semibold leading-5 text-[#777e89] dark:text-white/60">
+          {result.lines.slice(1).map((line) => (
+            <div key={line}>{line}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getResultHintTone(status: string) {
+  if (status === "failed") {
+    return {
+      button: "border-[#ff5a4f]/20 bg-[#ffe8e5] text-[#ff5a4f] hover:border-[#ff5a4f]/40 dark:border-[#ff5a4f]/25 dark:bg-[#ff5a4f]/16 dark:text-[#ff9a92]",
+      badge: "bg-[#ffe8e5] text-[#ff5a4f] dark:bg-[#ff5a4f]/18 dark:text-[#ff9a92]",
+    };
+  }
+
+  if (status === "syncing") {
+    return {
+      button: "border-[#2f7df6]/20 bg-[#e8f1ff] text-[#2f7df6] hover:border-[#2f7df6]/40 dark:border-[#2f7df6]/25 dark:bg-[#2f7df6]/16 dark:text-[#8bbcff]",
+      badge: "bg-[#e8f1ff] text-[#2f7df6] dark:bg-[#2f7df6]/18 dark:text-[#8bbcff]",
+    };
+  }
+
+  if (status === "pending") {
+    return {
+      button: "border-[#ffb48b]/30 bg-[#fff4df] text-[#9b5a17] hover:border-[#ffb48b]/60 dark:border-[#ffb48b]/25 dark:bg-[#ffb48b]/16 dark:text-[#ffd2b7]",
+      badge: "bg-[#fff4df] text-[#9b5a17] dark:bg-[#ffb48b]/16 dark:text-[#ffd2b7]",
+    };
+  }
+
+  return {
+    button: "border-[#6bb956]/20 bg-[#edf8e8] text-[#6bb956] hover:border-[#6bb956]/40 dark:border-[#6bb956]/25 dark:bg-[#6bb956]/16 dark:text-[#a5dd95]",
+    badge: "bg-[#edf8e8] text-[#6bb956] dark:bg-[#6bb956]/18 dark:text-[#a5dd95]",
+  };
+}
+
+function getSyncResultSummary(source: KnowledgeSourceWithStats) {
+  const syncedAt = source.lastSyncedAt ? source.lastSyncedAt.toLocaleString("zh-CN") : "";
+  const updatedAt = source.updatedAt ? source.updatedAt.toLocaleString("zh-CN") : "";
+  const contentStats = `当前入库：${source.pageCount} 个页面 / ${source.chunkCount} 个切块`;
+
+  if (source.status === "failed") {
+    return {
+      label: "抓取失败",
+      lines: [
+        "抓取失败",
+        source.lastError ? `错误：${source.lastError}` : "错误：未记录具体原因",
+        syncedAt ? `上次成功：${syncedAt}` : "上次成功：暂无",
+        contentStats,
+      ],
+    };
+  }
+
+  if (source.status === "syncing") {
+    return {
+      label: "正在抓取",
+      lines: [
+        "正在抓取",
+        updatedAt ? `状态更新时间：${updatedAt}` : "状态更新时间：暂无",
+        syncedAt ? `最近成功：${syncedAt}` : "最近成功：暂无",
+        contentStats,
+      ],
+    };
+  }
+
+  if (source.status === "pending") {
+    return {
+      label: "等待同步",
+      lines: ["等待同步", "还没有执行数据抓取。", contentStats],
+    };
+  }
+
+  return {
+    label: "抓取成功",
+    lines: [
+      "抓取成功",
+      syncedAt ? `完成时间：${syncedAt}` : "完成时间：暂无",
+      contentStats,
+      source.chunkCount === 0 ? "提示：本次没有可入库内容，可能页面为空或内容重复。" : "结果：已更新知识库内容。",
+    ],
+  };
 }
