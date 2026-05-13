@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function DemoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ style?: string; text?: string; tenantId?: string }>;
+  searchParams: Promise<{ style?: string; text?: string; tenantId?: string; locale?: string }>;
 }) {
   const params = await searchParams;
   const siteId = process.env.DEFAULT_SITE_ID || DEMO_SITE_ID;
@@ -47,6 +47,7 @@ export default async function DemoPage({
         src="/widget.js"
         data-site-id={siteId}
         data-tenant-id={params.tenantId || ""}
+        data-locale={params.locale || ""}
         data-preview-style={params.style || ""}
         data-preview-text={params.text || ""}
         strategy="afterInteractive"

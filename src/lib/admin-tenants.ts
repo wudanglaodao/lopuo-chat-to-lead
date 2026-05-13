@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 
-import { getDb, tenants, type Tenant } from "@/db";
-import { isDemoMode } from "@/lib/demo-mode";
+import { getDb, sites, tenants, type Site, type Tenant } from "@/db";
+import { DEMO_TENANT_ID, getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 
 export type TenantOption = Pick<Tenant, "id" | "customerId" | "name" | "description" | "status">;
 
@@ -15,6 +15,40 @@ export async function getTenantOptions(customerId: string) {
     .from(tenants)
     .where(eq(tenants.customerId, customerId))
     .orderBy(desc(tenants.updatedAt));
+}
+
+export async function getAdminSiteTenantContext({
+  customerId,
+  siteId,
+  requestedTenantId,
+}: {
+  customerId: string;
+  siteId: string;
+  requestedTenantId?: string | null;
+}) {
+  const [site, tenantRows] = await Promise.all([
+    getAdminSite(siteId, customerId),
+    getTenantOptions(customerId),
+  ]);
+  const activeTenant = resolveActiveTenant(tenantRows, requestedTenantId, site.defaultTenantId);
+
+  return {
+    site,
+    tenantRows,
+    activeTenant,
+  };
+}
+
+async function getAdminSite(siteId: string, customerId: string): Promise<Site> {
+  if (isDemoMode()) {
+    return getDemoAdminSite(siteId, customerId);
+  }
+
+  const [site] = await getDb().select().from(sites).where(eq(sites.id, siteId)).limit(1);
+  if (!site) {
+    throw new Error("Site not found.");
+  }
+  return site;
 }
 
 export function resolveActiveTenant(
@@ -51,4 +85,40 @@ export function getDemoTenants(customerId: string): Tenant[] {
       updatedAt: new Date(),
     },
   ];
+}
+
+function getDemoAdminSite(siteId: string, customerId: string): Site {
+  const demoConfig = getDemoWidgetConfig({ siteId });
+
+  return {
+    id: siteId,
+    customerId,
+    defaultTenantId: DEMO_TENANT_ID,
+    name: "演示站点",
+    domain: "lopuo.work",
+    widgetName: demoConfig.widgetName,
+    welcomeTitle: demoConfig.welcomeTitle,
+    welcomeMessage: demoConfig.welcomeMessage,
+    themeColor: demoConfig.themeColor,
+    launcherText: demoConfig.launcherText,
+    launcherStyle: demoConfig.launcherStyle,
+    launcherImageUrl: demoConfig.launcherImageUrl,
+    launcherBadgeText: demoConfig.launcherBadgeText,
+    launcherAnimation: demoConfig.launcherAnimation,
+    suggestedQuestions: demoConfig.suggestedQuestions,
+    allowedOrigins: ["lopuo.work", "www.lopuo.work", "localhost:3000", "127.0.0.1:3000"],
+    showSources: demoConfig.showSources,
+    collectLeadEnabled: demoConfig.collectLeadEnabled,
+    aiTone: demoConfig.aiTone,
+    toneKeywords: demoConfig.toneKeywords,
+    businessFlow: demoConfig.businessFlow,
+    multilingualEnabled: false,
+    defaultLocale: "zh-CN",
+    enabledLocales: ["zh-CN"],
+    systemPrompt: "",
+    deepseekModel: "",
+    embeddingModel: "",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }

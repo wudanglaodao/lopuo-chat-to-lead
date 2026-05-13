@@ -6,6 +6,7 @@ import { getDb, sites, tenants } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { DEFAULT_AI_TONE, DEFAULT_BUSINESS_FLOW, DEFAULT_TONE_KEYWORDS, DEFAULT_WELCOME_TITLE } from "@/lib/defaults";
 import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
+import { SUPPORTED_WIDGET_LOCALES } from "@/lib/widget-i18n";
 
 const settingsSchema = z.object({
   defaultTenantId: z.string().uuid().optional().nullable(),
@@ -25,6 +26,9 @@ const settingsSchema = z.object({
   aiTone: z.string().min(1).max(40),
   toneKeywords: z.array(z.string().min(1).max(40)).max(20),
   businessFlow: z.string().max(4000).optional().nullable(),
+  multilingualEnabled: z.boolean().default(false),
+  defaultLocale: z.enum(SUPPORTED_WIDGET_LOCALES).default("zh-CN"),
+  enabledLocales: z.array(z.enum(SUPPORTED_WIDGET_LOCALES)).min(1).max(3).default(["zh-CN"]),
   systemPrompt: z.string().max(4000).optional().nullable(),
   deepseekModel: z.string().max(120).optional().nullable(),
   embeddingModel: z.string().max(120).optional().nullable(),
@@ -49,6 +53,9 @@ export async function GET() {
         toneKeywords: DEFAULT_TONE_KEYWORDS,
         businessFlow: DEFAULT_BUSINESS_FLOW,
         welcomeTitle: DEFAULT_WELCOME_TITLE,
+        multilingualEnabled: false,
+        defaultLocale: "zh-CN",
+        enabledLocales: ["zh-CN"],
       },
     });
   }

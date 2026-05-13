@@ -1,11 +1,11 @@
 import { and, desc, eq } from "drizzle-orm";
 
 import { addKnowledgeSourceAction, syncKnowledgeSourceAction } from "@/app/admin/actions";
-import { getDb, knowledgeSources, sites } from "@/db";
+import { getDb, knowledgeSources } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getTenantOptions, resolveActiveTenant } from "@/lib/admin-tenants";
+import { getAdminSiteTenantContext } from "@/lib/admin-tenants";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +16,11 @@ export default async function KnowledgePage({
 }) {
   const session = await requireAdmin();
   const params = await searchParams;
-  const [site] = isDemoMode()
-    ? [{ defaultTenantId: "22222222-2222-4222-8222-222222222222" }]
-    : await getDb().select({ defaultTenantId: sites.defaultTenantId }).from(sites).where(eq(sites.id, session.siteId)).limit(1);
-  const tenantRows = await getTenantOptions(session.customerId);
-  const activeTenant = resolveActiveTenant(tenantRows, params.tenantId, site?.defaultTenantId);
+  const { tenantRows, activeTenant } = await getAdminSiteTenantContext({
+    customerId: session.customerId,
+    siteId: session.siteId,
+    requestedTenantId: params.tenantId,
+  });
   const sources = isDemoMode()
     ? []
     : activeTenant
@@ -35,6 +35,7 @@ export default async function KnowledgePage({
             ),
           )
           .orderBy(desc(knowledgeSources.updatedAt))
+          .limit(100)
       : [];
 
   return (

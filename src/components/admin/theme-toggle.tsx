@@ -1,12 +1,16 @@
 "use client";
 
 import { Moon, SunMedium } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 type Theme = "light" | "dark";
 
 export function ThemeToggle() {
   const theme = useSyncExternalStore(subscribeTheme, getThemeSnapshot, getServerThemeSnapshot);
+
+  useEffect(() => {
+    applyResolvedTheme(readInitialTheme(), false);
+  }, []);
 
   function chooseTheme(next: Theme) {
     applyTheme(next);
@@ -47,9 +51,24 @@ export function ThemeToggle() {
 }
 
 function applyTheme(next: Theme) {
+  applyResolvedTheme(next, true);
+}
+
+function applyResolvedTheme(next: Theme, persist: boolean) {
   document.documentElement.classList.toggle("dark", next === "dark");
-  window.localStorage.setItem("lopuo-admin-theme", next);
+  if (persist) {
+    window.localStorage.setItem("lopuo-admin-theme", next);
+  }
   window.dispatchEvent(new Event("lopuo-admin-theme-change"));
+}
+
+function readInitialTheme(): Theme {
+  const stored = window.localStorage.getItem("lopuo-admin-theme");
+  if (stored === "dark" || stored === "light") {
+    return stored;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function getThemeSnapshot(): Theme {

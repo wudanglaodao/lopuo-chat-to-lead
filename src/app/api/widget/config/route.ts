@@ -10,11 +10,11 @@ export async function GET(request: NextRequest) {
   const requestedTenantId = request.nextUrl.searchParams.get("tenantId");
 
   if (!siteId) {
-    return NextResponse.json({ error: "siteId is required." }, { status: 400 });
+    return noStoreJson({ error: "siteId is required." }, { status: 400 });
   }
 
   if (isDemoMode()) {
-    return NextResponse.json(
+    return noStoreJson(
       getDemoWidgetConfig({
         siteId,
         previewStyle: request.nextUrl.searchParams.get("previewStyle"),
@@ -27,12 +27,12 @@ export async function GET(request: NextRequest) {
   const [site] = await db.select().from(sites).where(eq(sites.id, siteId)).limit(1);
 
   if (!site) {
-    return NextResponse.json({ error: "Site not found." }, { status: 404 });
+    return noStoreJson({ error: "Site not found." }, { status: 404 });
   }
 
   const origin = request.headers.get("origin") || request.headers.get("referer");
   if (!isAllowedOrigin(origin, site.allowedOrigins)) {
-    return NextResponse.json({ error: "Origin is not allowed." }, { status: 403 });
+    return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
   }
 
   let tenantId = site.defaultTenantId;
@@ -44,13 +44,13 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (!tenant) {
-      return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+      return noStoreJson({ error: "Tenant not found." }, { status: 404 });
     }
 
     tenantId = tenant.id;
   }
 
-  return NextResponse.json({
+  return noStoreJson({
     siteId: site.id,
     tenantId,
     customerId: site.customerId,
@@ -66,5 +66,14 @@ export async function GET(request: NextRequest) {
     suggestedQuestions: site.suggestedQuestions,
     showSources: site.showSources,
     collectLeadEnabled: site.collectLeadEnabled,
+    multilingualEnabled: site.multilingualEnabled,
+    defaultLocale: site.defaultLocale,
+    enabledLocales: site.enabledLocales,
   });
+}
+
+function noStoreJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
 }

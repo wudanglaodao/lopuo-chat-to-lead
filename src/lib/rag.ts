@@ -8,6 +8,9 @@ import {
   isPromptInjectionAttempt,
   shouldUseLowConfidenceFallback,
 } from "@/lib/safety";
+import { WIDGET_LOCALE_LABELS, type SupportedWidgetLocale } from "@/lib/widget-i18n";
+
+type HistoryMessage = Pick<typeof messages.$inferSelect, "role" | "content" | "createdAt">;
 
 export type AnswerResult = {
   answer: string;
@@ -28,6 +31,9 @@ export async function answerQuestion({
   siteId,
   conversationId,
   question,
+  locale,
+  excludeMessageId,
+  recentMessages,
   timing,
   onToken,
 }: {
@@ -36,6 +42,9 @@ export async function answerQuestion({
   siteId: string;
   conversationId: string;
   question: string;
+  locale?: SupportedWidgetLocale;
+  excludeMessageId?: string;
+  recentMessages?: HistoryMessage[];
   timing?: TimingTracker;
   onToken?: (token: string) => void | Promise<void>;
 }): Promise<AnswerResult> {
@@ -58,7 +67,7 @@ export async function answerQuestion({
   const activeTenantId = tenantId || site.defaultTenantId;
 
   if (isPromptInjectionAttempt(question)) {
-    const answer = buildRefusalMessage();
+    const answer = buildRefusalMessage(locale || "zh-CN");
     if (onToken) {
       await onToken(answer);
     }
@@ -72,9 +81,26 @@ export async function answerQuestion({
     };
   }
 
-  const sources = activeTenantId
-    ? await findRelevantChunks({ customerId, tenantId: activeTenantId, query: question, timing })
-    : [];
+  const sourcesPromise = activeTenantId
+    ? findRelevantChunks({ customerId, tenantId: activeTenantId, query: question, timing })
+    : Promise.resolve([]);
+  const historyPromise = recentMessages
+    ? Promise.resolve(recentMessages)
+    : track(timing, "rag.history_lookup", () =>
+        db.query.messages.findMany({
+          columns: {
+            role: true,
+            content: true,
+            createdAt: true,
+          },
+          where: excludeMessageId
+            ? and(eq(messages.conversationId, conversationId), sql`${messages.id} <> ${excludeMessageId}`)
+            : eq(messages.conversationId, conversationId),
+          orderBy: desc(messages.createdAt),
+          limit: 6,
+        }),
+      );
+  const [sources, history] = await Promise.all([sourcesPromise, historyPromise]);
   const bestScore = sources[0]?.score ?? null;
   const isMiss = shouldUseLowConfidenceFallback(bestScore);
   timing?.mark("rag.retrieval_result", {
@@ -82,14 +108,6 @@ export async function answerQuestion({
     bestScore,
     isMiss,
   });
-
-  const history = await track(timing, "rag.history_lookup", () =>
-    db.query.messages.findMany({
-      where: eq(messages.conversationId, conversationId),
-      orderBy: desc(messages.createdAt),
-      limit: 6,
-    }),
-  );
 
   const systemPrompt = buildSystemPrompt({
     customerName: site.customer.name,
@@ -109,6 +127,7 @@ export async function answerQuestion({
         isMiss
           ? "本轮检索没有找到高置信度资料。请自然说明暂时无法确认具体信息，可以追问用户需求，并引导用户直接在对话里留下联系方式；不要编造事实。"
           : "本轮检索找到了可参考资料。请优先基于资料回答，必要时结合上下文追问需求。",
+        `请使用${WIDGET_LOCALE_LABELS[locale || "zh-CN"]}回答本轮对话。`,
         formatSourcesForPrompt(sources),
       ].join("\n\n"),
     },

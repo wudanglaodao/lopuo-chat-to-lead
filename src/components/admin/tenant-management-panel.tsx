@@ -71,21 +71,6 @@ export function TenantManagementPanel({
           新建租户
         </button>
       </form>
-
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href={`/admin/knowledge${activeTenantId ? `?tenantId=${activeTenantId}` : ""}`}
-          className="rounded-[16px] bg-[#2f7df6] px-4 py-2 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#1d6ef0]"
-        >
-          管理当前租户知识库
-        </Link>
-        <Link
-          href={`/admin/conversations${activeTenantId ? `?tenantId=${activeTenantId}` : ""}`}
-          className="rounded-[16px] bg-[#f6f6f7] px-4 py-2 text-sm font-bold text-[#5d646f] transition hover:-translate-y-0.5 hover:bg-white hover:text-[#2f7df6] hover:shadow-sm dark:bg-white/8 dark:text-white/65 dark:hover:bg-white/12 dark:hover:text-white"
-        >
-          查看当前租户会话
-        </Link>
-      </div>
     </section>
   );
 }
