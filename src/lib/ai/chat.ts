@@ -1,4 +1,10 @@
-import { BASE_SYSTEM_PROMPT } from "@/lib/defaults";
+import {
+  AI_TONE_PRESETS,
+  BASE_SYSTEM_PROMPT,
+  DEFAULT_AI_TONE,
+  DEFAULT_BUSINESS_FLOW,
+  DEFAULT_TONE_KEYWORDS,
+} from "@/lib/defaults";
 
 const DEFAULT_CHAT_MODEL = "mimo-v2.5";
 
@@ -8,6 +14,9 @@ export type ChatMessage = {
 };
 
 type ChatChoice = {
+  delta?: {
+    content?: string;
+  };
   message?: {
     content?: string;
   };
@@ -24,16 +33,22 @@ export function getChatModel(siteModel?: string | null) {
 export async function generateChatAnswer({
   messages,
   model,
+  onToken,
 }: {
   messages: ChatMessage[];
   model?: string | null;
+  onToken?: (token: string) => void | Promise<void>;
 }) {
   const apiKey = process.env.LLM_API_KEY || process.env.DEEPSEEK_API_KEY;
   const selectedModel = getChatModel(model);
 
   if (!apiKey) {
     if (process.env.NODE_ENV !== "production" && process.env.ALLOW_FAKE_LLM !== "false") {
-      return fakeAnswer(messages);
+      const answer = fakeAnswer(messages);
+      if (onToken) {
+        await streamFakeAnswer(answer, onToken);
+      }
+      return answer;
     }
 
     throw new Error("LLM_API_KEY is required.");
@@ -50,11 +65,16 @@ export async function generateChatAnswer({
       model: selectedModel,
       messages,
       temperature: 0.3,
+      stream: Boolean(onToken),
     }),
   });
 
   if (!response.ok) {
     throw new Error(`Chat provider request failed: ${response.status} ${await response.text()}`);
+  }
+
+  if (onToken) {
+    return streamChatCompletion(response, onToken);
   }
 
   const payload = (await response.json()) as ChatResponse;
@@ -70,13 +90,26 @@ export async function generateChatAnswer({
 export function buildSystemPrompt({
   customerName,
   customPrompt,
+  aiTone,
+  toneKeywords,
+  businessFlow,
 }: {
   customerName: string;
   customPrompt?: string | null;
+  aiTone?: string | null;
+  toneKeywords?: string[] | null;
+  businessFlow?: string | null;
 }) {
+  const toneKey = aiTone || DEFAULT_AI_TONE;
+  const toneDescription = AI_TONE_PRESETS[toneKey] || AI_TONE_PRESETS[DEFAULT_AI_TONE];
+  const keywords = toneKeywords?.length ? toneKeywords : DEFAULT_TONE_KEYWORDS;
+
   return [
     BASE_SYSTEM_PROMPT,
     `当前服务客户：${customerName}`,
+    toneDescription ? `语气配置：${toneDescription}` : null,
+    keywords.length ? `语气内置词：${keywords.join("、")}` : null,
+    `业务流程说明：\n${businessFlow?.trim() || DEFAULT_BUSINESS_FLOW}`,
     customPrompt ? `客户补充规则：${customPrompt}` : null,
   ]
     .filter(Boolean)
@@ -103,4 +136,92 @@ function fakeAnswer(messages: ChatMessage[]) {
     : "当前没有可用知识库资料。";
 
   return `${sourceHint}\n\n关于「${userQuestion.slice(0, 80)}」，建议先基于官网资料确认核心信息；如果您希望获得更具体的方案或报价，可以留下联系方式，我们会安排同事继续沟通。`;
+}
+
+async function streamChatCompletion(
+  response: Response,
+  onToken: (token: string) => void | Promise<void>,
+) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const payload = (await response.json()) as ChatResponse;
+    const content = payload.choices?.[0]?.message?.content?.trim();
+    if (!content) {
+      throw new Error("Chat provider returned an empty answer.");
+    }
+    await onToken(content);
+    return content;
+  }
+
+  if (!response.body) {
+    throw new Error("Chat provider did not return a readable stream.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const token = parseStreamLine(line);
+      if (!token) continue;
+      content += token;
+      await onToken(token);
+    }
+  }
+
+  const finalToken = parseStreamLine(buffer);
+  if (finalToken) {
+    content += finalToken;
+    await onToken(finalToken);
+  }
+
+  const normalized = content.trim();
+  if (!normalized) {
+    throw new Error("Chat provider returned an empty streamed answer.");
+  }
+
+  return normalized;
+}
+
+function parseStreamLine(line: string) {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith(":")) return "";
+
+  const data = trimmed.startsWith("data:") ? trimmed.slice(5).trim() : trimmed;
+  if (!data || data === "[DONE]") return "";
+
+  try {
+    const payload = JSON.parse(data) as ChatResponse;
+    return payload.choices?.[0]?.delta?.content || payload.choices?.[0]?.message?.content || "";
+  } catch {
+    return "";
+  }
+}
+
+async function streamFakeAnswer(
+  answer: string,
+  onToken: (token: string) => void | Promise<void>,
+) {
+  const chunks = chunkText(answer, 18);
+  for (const chunk of chunks) {
+    await onToken(chunk);
+  }
+}
+
+function chunkText(text: string, size: number) {
+  const chunks: string[] = [];
+  for (let index = 0; index < text.length; index += size) {
+    chunks.push(text.slice(index, index + size));
+  }
+  return chunks.length ? chunks : [text];
 }

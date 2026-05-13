@@ -1,8 +1,10 @@
 import { and, desc, eq } from "drizzle-orm";
 import { ArrowUpRight, Check, Clock3, Filter, MessageSquareText, Search, UserRound } from "lucide-react";
+import Link from "next/link";
 
-import { conversations } from "@/db";
+import { conversations, sites } from "@/db";
 import { getDb } from "@/db";
+import { getTenantOptions, resolveActiveTenant } from "@/lib/admin-tenants";
 import { requireAdmin } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -27,12 +29,26 @@ type ConversationRow = {
   }>;
 };
 
-export default async function ConversationsPage() {
+export default async function ConversationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tenantId?: string }>;
+}) {
   const session = await requireAdmin();
+  const params = await searchParams;
+  const [site] = isDemoMode()
+    ? [{ defaultTenantId: "22222222-2222-4222-8222-222222222222" }]
+    : await getDb().select({ defaultTenantId: sites.defaultTenantId }).from(sites).where(eq(sites.id, session.siteId)).limit(1);
+  const tenantRows = await getTenantOptions(session.customerId);
+  const activeTenant = resolveActiveTenant(tenantRows, params.tenantId, site?.defaultTenantId);
   const rows: ConversationRow[] = isDemoMode()
-    ? getDemoConversations()
+    ? getDemoConversations().filter((conversation) => !activeTenant || conversation.tenant?.id === activeTenant.id)
     : await getDb().query.conversations.findMany({
-        where: and(eq(conversations.customerId, session.customerId), eq(conversations.siteId, session.siteId)),
+        where: and(
+          eq(conversations.customerId, session.customerId),
+          eq(conversations.siteId, session.siteId),
+          activeTenant ? eq(conversations.tenantId, activeTenant.id) : undefined,
+        ),
         with: {
           tenant: true,
           messages: true,
@@ -43,23 +59,31 @@ export default async function ConversationsPage() {
       });
 
   return (
-    <AdminShell title="会话" description="查看访客咨询、AI 回复、未命中问题和留资记录。">
+    <AdminShell
+      title="会话"
+      description="查看访客咨询、AI 回复、未命中问题和留咨记录。"
+      tenantSwitcher={{
+        activeTenantId: activeTenant?.id,
+        hrefBase: "/admin/conversations",
+        tenants: tenantRows,
+      }}
+    >
       <section className="overflow-hidden rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_42px_rgba(31,32,36,0.06)] dark:border-white/10 dark:bg-[#171a20] dark:shadow-none">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-3">
             <span className="h-10 w-2 rounded-full bg-[#c7b6ff]" />
-            <h2 className="text-2xl font-bold text-[#1f2024] dark:text-white">Conversation list</h2>
+            <h2 className="text-2xl font-bold text-[#1f2024] dark:text-white">访客会话</h2>
           </div>
           <div className="flex min-w-[260px] flex-1 items-center gap-3 rounded-[18px] bg-[#f3f3f4] px-4 py-3 text-[#9aa0aa] dark:bg-white/8 dark:text-white/45 md:max-w-md">
             <Search className="h-5 w-5" />
-            <span className="text-sm font-semibold">Search by visitor or message</span>
+            <span className="text-sm font-semibold">搜索访客、需求或消息</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <button className="rounded-[16px] bg-[#1f2329] px-5 py-3 text-sm font-bold text-white dark:bg-white dark:text-[#1f2329]" type="button">
-              Active
+              高意向
             </button>
             <button className="rounded-[16px] px-5 py-3 text-sm font-bold text-[#777e89] dark:text-white/45" type="button">
-              New
+              新咨询
             </button>
             <button
               className="grid h-12 w-12 place-items-center rounded-[16px] border border-black/[0.08] text-[#777e89] dark:border-white/10 dark:text-white/55"
@@ -75,12 +99,12 @@ export default async function ConversationsPage() {
           <div className="min-w-[1120px]">
             <div className="grid grid-cols-[44px_1.25fr_150px_1.1fr_120px_110px_1fr_86px] gap-4 border-b border-black/[0.06] px-2 pb-4 text-sm font-bold text-[#777e89] dark:border-white/10 dark:text-white/45">
               <div />
-              <div>Visitor</div>
-              <div>Tenant</div>
-              <div>Page</div>
-              <div>Status</div>
-              <div>Messages</div>
-              <div>Lead</div>
+              <div>访客</div>
+              <div>场景</div>
+              <div>来源页面</div>
+              <div>状态</div>
+              <div>消息</div>
+              <div>留咨</div>
               <div />
             </div>
 
@@ -88,7 +112,7 @@ export default async function ConversationsPage() {
               {rows.map((conversation, index) => {
                 const lead = conversation.leads[0];
                 const preview = getPreview(conversation);
-                const leadContact = lead ? lead.phone || lead.wechat || lead.email || "已留资" : "未留资";
+                const leadContact = lead ? lead.phone || lead.wechat || lead.email || "已留咨" : "未留咨";
                 return (
                   <div
                     key={conversation.id}
@@ -110,7 +134,7 @@ export default async function ConversationsPage() {
                       </div>
                     </div>
                     <div>
-                      <TenantPill name={conversation.tenant?.name || "默认租户"} />
+                      <TenantPill name={conversation.tenant?.name || "默认场景"} />
                     </div>
                     <div className="min-w-0">
                       <div className="truncate font-bold text-[#5d646f] dark:text-white/70">{conversation.pageUrl || "未知页面"}</div>
@@ -121,7 +145,7 @@ export default async function ConversationsPage() {
                     </div>
                     <div className="flex gap-2">
                       {conversation.hasMiss ? <Badge tone="amber">未命中</Badge> : <Badge tone="green">正常</Badge>}
-                      {conversation.hasLead ? <Badge tone="blue">留资</Badge> : null}
+                      {conversation.hasLead ? <Badge tone="blue">留咨</Badge> : null}
                     </div>
                     <div className="flex items-center gap-2 font-bold text-[#1f2024] dark:text-white">
                       <MessageSquareText className="h-4 w-4 text-[#9aa0aa]" />
@@ -131,13 +155,13 @@ export default async function ConversationsPage() {
                       <div className="truncate font-bold text-[#1f2024] dark:text-white">{lead?.company || "未留公司"}</div>
                       <div className="mt-1 truncate text-sm font-semibold text-[#777e89]">{leadContact}</div>
                     </div>
-                    <button
-                      type="button"
+                    <Link
+                      href={`/admin/conversations/${conversation.id}${activeTenant?.id ? `?tenantId=${activeTenant.id}` : ""}`}
                       className="ml-auto grid h-10 w-10 place-items-center rounded-full bg-[#eeeeef] text-[#777e89] transition hover:bg-[#2f7df6] hover:text-white dark:bg-white/8 dark:text-white/55 dark:hover:bg-[#2f7df6] dark:hover:text-white"
                       aria-label="查看会话"
                     >
                       <ArrowUpRight className="h-5 w-5" />
-                    </button>
+                    </Link>
                   </div>
                 );
               })}
@@ -203,13 +227,13 @@ function getDemoConversations(): ConversationRow[] {
       hasMiss: false,
       hasLead: true,
       updatedAt: new Date(),
-      tenant: { id: "22222222-2222-4222-8222-222222222222", name: "默认租户" },
+      tenant: { id: "22222222-2222-4222-8222-222222222222", name: "官网客服" },
       messages: [
         { id: "demo-message-1", role: "user", content: "你们能帮我的企业解决什么具体问题？" },
         {
           id: "demo-message-2",
           role: "assistant",
-          content: "接入知识库后，AI 会基于官网内容回答，并在商务承诺问题上引导留资跟进。",
+          content: "接入知识库后，AI 会基于官网内容回答，并在商务承诺问题上引导留咨跟进。",
         },
       ],
       leads: [{ id: "demo-lead-1", name: "演示客户", phone: "138****0000", company: "某某科技" }],
@@ -246,7 +270,7 @@ function getDemoConversations(): ConversationRow[] {
       hasMiss: false,
       hasLead: false,
       updatedAt: new Date(Date.now() - 1000 * 60 * 90),
-      tenant: { id: "22222222-2222-4222-8222-222222222222", name: "默认租户" },
+      tenant: { id: "22222222-2222-4222-8222-222222222222", name: "官网客服" },
       messages: [
         { id: "demo-message-7", role: "user", content: "你们有哪些解决方案？" },
         { id: "demo-message-8", role: "assistant", content: "可以从官网知识库中提取服务、产品和案例内容进行回答。" },

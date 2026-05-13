@@ -19,10 +19,11 @@ export type AdminSession = {
 
 export async function loginAdmin(email: string, password: string) {
   const normalizedEmail = email.toLowerCase();
-  const envEmail = (process.env.ADMIN_EMAIL || "admin@example.com").toLowerCase();
-  const envPassword = process.env.ADMIN_PASSWORD || "change-me";
+  const demoEmail = (process.env.ADMIN_EMAIL || "admin@example.com").toLowerCase();
+  const demoPassword = process.env.ADMIN_PASSWORD || "change-me";
+  const envAdmin = getConfiguredAdminCredentials();
 
-  if (isDemoMode() && normalizedEmail === envEmail && password === envPassword) {
+  if (isDemoMode() && normalizedEmail === demoEmail && password === demoPassword) {
     return createSession({
       email: normalizedEmail,
       customerId: DEMO_CUSTOMER_ID,
@@ -55,17 +56,12 @@ export async function loginAdmin(email: string, password: string) {
     });
   }
 
-  const defaultSiteId = process.env.DEFAULT_SITE_ID;
-
-  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && defaultSiteId && normalizedEmail === envEmail && password === envPassword) {
-    const [site] = await db.query.sites.findMany({
-      where: eq(sites.id, defaultSiteId),
-      limit: 1,
-    });
+  if (envAdmin && normalizedEmail === envAdmin.email && password === envAdmin.password) {
+    const site = await resolveEnvAdminSite();
 
     if (site) {
       return createSession({
-        email: envEmail,
+        email: envAdmin.email,
         customerId: site.customerId,
         siteId: site.id,
         role: "admin",
@@ -74,6 +70,48 @@ export async function loginAdmin(email: string, password: string) {
   }
 
   return null;
+}
+
+function getConfiguredAdminCredentials() {
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    return null;
+  }
+
+  return { email, password };
+}
+
+async function resolveEnvAdminSite() {
+  const db = getDb();
+  const defaultSiteId = process.env.DEFAULT_SITE_ID?.trim();
+
+  if (defaultSiteId) {
+    const [site] = await db.query.sites.findMany({
+      where: eq(sites.id, defaultSiteId),
+      limit: 1,
+    });
+
+    if (site) {
+      return site;
+    }
+  }
+
+  const defaultDomain = process.env.DEFAULT_SITE_DOMAIN?.trim();
+  if (defaultDomain) {
+    const [site] = await db.query.sites.findMany({
+      where: eq(sites.domain, defaultDomain),
+      limit: 1,
+    });
+
+    if (site) {
+      return site;
+    }
+  }
+
+  const candidateSites = await db.query.sites.findMany({ limit: 2 });
+  return candidateSites.length === 1 ? candidateSites[0] : null;
 }
 
 export async function setSessionCookie(session: AdminSession) {

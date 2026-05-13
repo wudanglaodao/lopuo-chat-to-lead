@@ -25,6 +25,8 @@ export async function addKnowledgeSourceAction(formData: FormData) {
 
   if (isDemoMode()) {
     revalidatePath("/admin/knowledge");
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin/settings/tenants");
     return;
   }
 
@@ -47,6 +49,8 @@ export async function addKnowledgeSourceAction(formData: FormData) {
   });
 
   revalidatePath("/admin/knowledge");
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/settings/tenants");
 }
 
 export async function createTenantAction(formData: FormData) {
@@ -60,6 +64,8 @@ export async function createTenantAction(formData: FormData) {
 
   if (isDemoMode()) {
     revalidatePath("/admin/knowledge");
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin/settings/tenants");
     return;
   }
 
@@ -81,6 +87,8 @@ export async function createTenantAction(formData: FormData) {
     });
 
   revalidatePath("/admin/knowledge");
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/settings/tenants");
 }
 
 export async function syncKnowledgeSourceAction(formData: FormData) {
@@ -102,15 +110,17 @@ export async function syncKnowledgeSourceAction(formData: FormData) {
 
 export async function updateSettingsAction(formData: FormData) {
   const session = await requireAdmin();
+  const section = String(formData.get("settingsSection") || "all");
 
   if (isDemoMode()) {
     revalidatePath("/admin/settings");
+    revalidatePath("/admin/settings/tenants");
     return;
   }
 
   const db = getDb();
   const requestedDefaultTenantId = String(formData.get("defaultTenantId") || "").trim();
-  let defaultTenantId: string | null = null;
+  let defaultTenantId: string | null | undefined;
 
   if (requestedDefaultTenantId) {
     const [defaultTenant] = await db
@@ -121,34 +131,53 @@ export async function updateSettingsAction(formData: FormData) {
     defaultTenantId = defaultTenant?.id || null;
   }
 
-  await db
-    .update(sites)
-    .set({
-      defaultTenantId,
-      widgetName: String(formData.get("widgetName") || "AI 助理"),
-      launcherText: String(formData.get("launcherText") || "AI 助理"),
-      welcomeMessage: String(formData.get("welcomeMessage") || ""),
-      themeColor: String(formData.get("themeColor") || "#16a34a"),
-      launcherStyle: String(formData.get("launcherStyle") || "vertical"),
-      launcherImageUrl: String(formData.get("launcherImageUrl") || "").trim() || null,
-      launcherBadgeText: String(formData.get("launcherBadgeText") || "").trim() || null,
-      launcherAnimation: String(formData.get("launcherAnimation") || "pulse"),
-      suggestedQuestions: String(formData.get("suggestedQuestions") || "")
-        .split("\n")
-        .map((item) => item.trim())
-        .filter(Boolean),
-      allowedOrigins: String(formData.get("allowedOrigins") || "")
-        .split("\n")
-        .map((item) => item.trim())
-        .filter(Boolean),
-      showSources: formData.get("showSources") === "on",
-      collectLeadEnabled: formData.get("collectLeadEnabled") === "on",
-      systemPrompt: String(formData.get("systemPrompt") || "").trim() || null,
-      deepseekModel: String(formData.get("deepseekModel") || "").trim() || null,
-      embeddingModel: String(formData.get("embeddingModel") || "").trim() || null,
-      updatedAt: sql`now()`,
-    })
-    .where(eq(sites.id, session.siteId));
+  const values: Partial<typeof sites.$inferInsert> = { updatedAt: sql`now()` as never };
+
+  if (section === "script" || section === "all") {
+    if (defaultTenantId !== undefined) {
+      values.defaultTenantId = defaultTenantId;
+    }
+    values.allowedOrigins = String(formData.get("allowedOrigins") || "")
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (section === "style" || section === "all") {
+    values.widgetName = String(formData.get("widgetName") || "AI 营销助手");
+    values.launcherText = String(formData.get("launcherText") || "咨询方案");
+    values.themeColor = String(formData.get("themeColor") || "#16a34a");
+    values.launcherStyle = String(formData.get("launcherStyle") || "vertical");
+    values.launcherImageUrl = String(formData.get("launcherImageUrl") || "").trim() || null;
+    values.launcherBadgeText = String(formData.get("launcherBadgeText") || "").trim() || null;
+    values.launcherAnimation = String(formData.get("launcherAnimation") || "pulse");
+  }
+
+  if (section === "content" || section === "all") {
+    values.welcomeTitle = String(formData.get("welcomeTitle") || "您好，我是 AI 营销助手");
+    values.welcomeMessage = String(formData.get("welcomeMessage") || "");
+    values.suggestedQuestions = String(formData.get("suggestedQuestions") || "")
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    values.showSources = formData.get("showSources") === "on";
+    values.collectLeadEnabled = formData.get("collectLeadEnabled") === "on";
+    values.aiTone = String(formData.get("aiTone") || "friendly");
+    values.toneKeywords = String(formData.get("toneKeywords") || "")
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    values.businessFlow = String(formData.get("businessFlow") || "").trim() || null;
+  }
+
+  if (section === "security" || section === "all") {
+    values.systemPrompt = String(formData.get("systemPrompt") || "").trim() || null;
+    values.deepseekModel = String(formData.get("deepseekModel") || "").trim() || null;
+    values.embeddingModel = String(formData.get("embeddingModel") || "").trim() || null;
+  }
+
+  await db.update(sites).set(values).where(eq(sites.id, session.siteId));
 
   revalidatePath("/admin/settings");
+  revalidatePath("/admin/settings/tenants");
 }

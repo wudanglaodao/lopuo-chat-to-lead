@@ -16,7 +16,7 @@ export async function GET() {
           tenantId: "22222222-2222-4222-8222-222222222222",
           tenant: {
             id: "22222222-2222-4222-8222-222222222222",
-            name: "默认租户",
+            name: "官网客服",
           },
           siteId: session.siteId,
           pageUrl: "http://localhost:3000/demo",
@@ -32,7 +32,7 @@ export async function GET() {
               id: "demo-message-2",
               role: "assistant",
               content:
-                "演示模式下这里展示模拟回复。接入知识库后，AI 会基于官网内容回答，并在价格、合同、交付承诺等问题上引导留资跟进。",
+                "预览模式下这里展示模拟回复。接入知识库后，AI 会基于官网内容回答，并在价格、合同、交付承诺等问题上引导留咨跟进。",
             },
           ],
           leads: [

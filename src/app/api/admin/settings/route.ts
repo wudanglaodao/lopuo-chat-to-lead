@@ -4,12 +4,14 @@ import { z } from "zod";
 
 import { getDb, sites, tenants } from "@/db";
 import { requireAdmin } from "@/lib/auth";
+import { DEFAULT_AI_TONE, DEFAULT_BUSINESS_FLOW, DEFAULT_TONE_KEYWORDS, DEFAULT_WELCOME_TITLE } from "@/lib/defaults";
 import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 
 const settingsSchema = z.object({
   defaultTenantId: z.string().uuid().optional().nullable(),
   widgetName: z.string().min(1).max(80),
   launcherText: z.string().min(1).max(80),
+  welcomeTitle: z.string().min(1).max(120),
   welcomeMessage: z.string().min(1).max(1000),
   themeColor: z.string().regex(/^#[0-9a-f]{6}$/i),
   launcherStyle: z.enum(["pill", "vertical", "mascot"]),
@@ -20,6 +22,9 @@ const settingsSchema = z.object({
   allowedOrigins: z.array(z.string().min(1).max(200)).max(20),
   showSources: z.boolean(),
   collectLeadEnabled: z.boolean(),
+  aiTone: z.string().min(1).max(40),
+  toneKeywords: z.array(z.string().min(1).max(40)).max(20),
+  businessFlow: z.string().max(4000).optional().nullable(),
   systemPrompt: z.string().max(4000).optional().nullable(),
   deepseekModel: z.string().max(120).optional().nullable(),
   embeddingModel: z.string().max(120).optional().nullable(),
@@ -40,6 +45,10 @@ export async function GET() {
         systemPrompt: "",
         deepseekModel: "",
         embeddingModel: "",
+        aiTone: DEFAULT_AI_TONE,
+        toneKeywords: DEFAULT_TONE_KEYWORDS,
+        businessFlow: DEFAULT_BUSINESS_FLOW,
+        welcomeTitle: DEFAULT_WELCOME_TITLE,
       },
     });
   }

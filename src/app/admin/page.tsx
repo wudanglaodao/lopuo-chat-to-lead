@@ -1,25 +1,41 @@
 import { and, eq } from "drizzle-orm";
 
-import { conversations, getDb, knowledgeSources, leads, sites, tenants } from "@/db";
+import { conversations, getDb, knowledgeSources, leads, sites } from "@/db";
 import { requireAdmin } from "@/lib/auth";
+import { getTenantOptions, resolveActiveTenant } from "@/lib/admin-tenants";
 import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 import { AdminShell, StatCard } from "@/components/admin/admin-shell";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminHomePage() {
+export default async function AdminHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tenantId?: string }>;
+}) {
   const session = await requireAdmin();
+  const params = await searchParams;
 
   if (isDemoMode()) {
     const site = getDemoWidgetConfig({ siteId: session.siteId });
+    const tenantRows = await getTenantOptions(session.customerId);
+    const activeTenant = resolveActiveTenant(tenantRows, params.tenantId, "22222222-2222-4222-8222-222222222222");
 
     return (
-      <AdminShell title="总览" description="当前是无数据库演示模式，可先查看 Widget 样式、交互和后台结构。">
+      <AdminShell
+        title="总览"
+        description="当前是无数据库预览模式，可先查看助手样式、交互和后台结构。"
+        tenantSwitcher={{
+          activeTenantId: activeTenant?.id,
+          hrefBase: "/admin",
+          tenants: tenantRows,
+        }}
+      >
         <div className="grid gap-4 md:grid-cols-4">
-          <StatCard icon="database" tone="blue" label="租户空间" value={2} hint="企业下业务空间" delta={{ value: "0%", direction: "up" }} />
+          <StatCard icon="database" tone="blue" label="获客场景" value={2} hint="企业下业务空间" delta={{ value: "0%", direction: "up" }} />
           <StatCard icon="chat" tone="purple" label="会话" value={1} hint="演示会话样例" delta={{ value: "37.8%", direction: "up" }} />
-          <StatCard icon="click" tone="orange" label="消息" value={3} hint="前台 Demo 模拟" delta={{ value: "12.4%", direction: "down" }} />
-          <StatCard icon="lead" tone="green" label="线索" value={1} hint="已留资访客" delta={{ value: "24.6%", direction: "up" }} />
+          <StatCard icon="click" tone="orange" label="消息" value={3} hint="前台预览模拟" delta={{ value: "12.4%", direction: "down" }} />
+          <StatCard icon="lead" tone="green" label="线索" value={1} hint="已留咨访客" delta={{ value: "24.6%", direction: "up" }} />
         </div>
         <section className="mt-6 rounded-[28px] border border-black/[0.06] bg-white p-6 shadow-[0_18px_42px_rgba(31,32,36,0.06)] dark:border-white/10 dark:bg-[#171a20] dark:shadow-none">
           <div className="flex items-center gap-3">
@@ -49,7 +65,8 @@ export default async function AdminHomePage() {
   const db = getDb();
 
   const [site] = await db.select().from(sites).where(eq(sites.id, session.siteId)).limit(1);
-  const tenantRows = await db.select().from(tenants).where(eq(tenants.customerId, session.customerId));
+  const tenantRows = await getTenantOptions(session.customerId);
+  const activeTenant = resolveActiveTenant(tenantRows, params.tenantId, site?.defaultTenantId);
   const sourceRows = await db
     .select()
     .from(knowledgeSources)
@@ -63,12 +80,20 @@ export default async function AdminHomePage() {
     .from(leads)
     .where(and(eq(leads.customerId, session.customerId), eq(leads.siteId, session.siteId)));
   return (
-    <AdminShell title="总览" description="查看当前站点的知识库、会话、留资和 AI 问答运行概况。">
+    <AdminShell
+      title="总览"
+      description="查看当前站点的知识库、会话、留咨线索和 AI 问答运行概况。"
+      tenantSwitcher={{
+        activeTenantId: activeTenant?.id,
+        hrefBase: "/admin",
+        tenants: tenantRows,
+      }}
+    >
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard icon="database" tone="blue" label="租户空间" value={tenantRows.length} hint="企业下业务空间" delta={{ value: "0%", direction: "up" }} />
+        <StatCard icon="database" tone="blue" label="获客场景" value={tenantRows.length} hint="企业下业务空间" delta={{ value: "0%", direction: "up" }} />
         <StatCard icon="chat" tone="purple" label="会话" value={conversationRows.length} hint="访客咨询会话" delta={{ value: "37.8%", direction: "up" }} />
         <StatCard icon="click" tone="orange" label="知识来源" value={sourceRows.length} hint="已配置 URL 数量" delta={{ value: "12.4%", direction: "down" }} />
-        <StatCard icon="lead" tone="green" label="线索" value={leadRows.length} hint="已留资访客" delta={{ value: "24.6%", direction: "up" }} />
+        <StatCard icon="lead" tone="green" label="线索" value={leadRows.length} hint="已留咨访客" delta={{ value: "24.6%", direction: "up" }} />
       </div>
       <section className="mt-6 rounded-[28px] border border-black/[0.06] bg-white p-6 shadow-[0_18px_42px_rgba(31,32,36,0.06)] dark:border-white/10 dark:bg-[#171a20] dark:shadow-none">
         <div className="flex items-center gap-3">

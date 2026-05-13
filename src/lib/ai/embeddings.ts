@@ -21,6 +21,10 @@ export async function embedText(input: string) {
 }
 
 export async function embedMany(inputs: string[]) {
+  if (inputs.length === 0) {
+    return [];
+  }
+
   const apiKey = process.env.EMBEDDING_API_KEY;
   const baseUrl = process.env.EMBEDDING_API_BASE_URL;
 
@@ -32,6 +36,22 @@ export async function embedMany(inputs: string[]) {
     throw new Error("EMBEDDING_API_BASE_URL and EMBEDDING_API_KEY are required.");
   }
 
+  const batchSize = Math.max(1, Number(process.env.EMBEDDING_BATCH_SIZE || 10));
+  const embeddings: number[][] = [];
+
+  for (let index = 0; index < inputs.length; index += batchSize) {
+    const batch = inputs.slice(index, index + batchSize);
+    embeddings.push(...(await fetchEmbeddingBatch(baseUrl, apiKey, batch)));
+  }
+
+  if (embeddings.length !== inputs.length) {
+    throw new Error("Embedding provider returned an unexpected response count.");
+  }
+
+  return embeddings.map(assertEmbeddingDimensions);
+}
+
+async function fetchEmbeddingBatch(baseUrl: string, apiKey: string, inputs: string[]) {
   const response = await fetch(joinUrl(baseUrl, "/embeddings"), {
     method: "POST",
     headers: {
@@ -59,7 +79,7 @@ export async function embedMany(inputs: string[]) {
     throw new Error("Embedding provider returned an unexpected response shape.");
   }
 
-  return embeddings.map(assertEmbeddingDimensions);
+  return embeddings;
 }
 
 function assertEmbeddingDimensions(embedding: number[]) {

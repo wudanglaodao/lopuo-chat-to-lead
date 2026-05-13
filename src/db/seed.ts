@@ -4,7 +4,14 @@ import { hash } from "bcryptjs";
 import { eq } from "drizzle-orm";
 
 import { closeDb, customerUsers, customers, getDb, tenants, sites } from "@/db";
-import { DEFAULT_SUGGESTED_QUESTIONS, DEFAULT_WELCOME_MESSAGE } from "@/lib/defaults";
+import {
+  DEFAULT_AI_TONE,
+  DEFAULT_BUSINESS_FLOW,
+  DEFAULT_SUGGESTED_QUESTIONS,
+  DEFAULT_TONE_KEYWORDS,
+  DEFAULT_WELCOME_MESSAGE,
+  DEFAULT_WELCOME_TITLE,
+} from "@/lib/defaults";
 
 config({ path: ".env.local" });
 config();
@@ -41,13 +48,13 @@ async function main() {
     .values({
       id: DEFAULT_TENANT_ID,
       customerId: DEFAULT_CUSTOMER_ID,
-      name: "默认租户",
-      description: "官网 AI 客服默认租户",
+      name: "官网客服",
+      description: "营销官网默认转化工作区",
     })
     .onConflictDoUpdate({
       target: [tenants.customerId, tenants.name],
       set: {
-        description: "官网 AI 客服默认租户",
+        description: "营销官网默认转化工作区",
       },
     })
     .returning();
@@ -59,28 +66,36 @@ async function main() {
       id: DEFAULT_SITE_ID,
       customerId: DEFAULT_CUSTOMER_ID,
       defaultTenantId: activeTenantId,
-      name: process.env.DEFAULT_SITE_NAME || "Lopuo 官网",
+      name: process.env.DEFAULT_SITE_NAME || "Lopuo Signal 官网",
       domain: DEFAULT_SITE_DOMAIN,
-      widgetName: process.env.DEFAULT_WIDGET_NAME || "AI 助理",
-      launcherText: "AI 助理",
+      widgetName: process.env.DEFAULT_WIDGET_NAME || "AI 营销助手",
+      launcherText: "咨询方案",
       launcherStyle: "vertical",
       launcherBadgeText: "1",
       launcherAnimation: "pulse",
+      welcomeTitle: DEFAULT_WELCOME_TITLE,
       welcomeMessage: DEFAULT_WELCOME_MESSAGE,
       suggestedQuestions: DEFAULT_SUGGESTED_QUESTIONS,
+      aiTone: DEFAULT_AI_TONE,
+      toneKeywords: DEFAULT_TONE_KEYWORDS,
+      businessFlow: DEFAULT_BUSINESS_FLOW,
       allowedOrigins: Array.from(new Set([DEFAULT_SITE_DOMAIN, `www.${DEFAULT_SITE_DOMAIN.replace(/^www\./, "")}`, "localhost:3000", "127.0.0.1:3000"])),
     })
     .onConflictDoUpdate({
       target: sites.id,
       set: {
         defaultTenantId: activeTenantId,
-        widgetName: process.env.DEFAULT_WIDGET_NAME || "AI 助理",
-        launcherText: "AI 助理",
+        widgetName: process.env.DEFAULT_WIDGET_NAME || "AI 营销助手",
+        launcherText: "咨询方案",
         launcherStyle: "vertical",
         launcherBadgeText: "1",
         launcherAnimation: "pulse",
+        welcomeTitle: DEFAULT_WELCOME_TITLE,
         welcomeMessage: DEFAULT_WELCOME_MESSAGE,
         suggestedQuestions: DEFAULT_SUGGESTED_QUESTIONS,
+        aiTone: DEFAULT_AI_TONE,
+        toneKeywords: DEFAULT_TONE_KEYWORDS,
+        businessFlow: DEFAULT_BUSINESS_FLOW,
       },
     });
 

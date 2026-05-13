@@ -20,8 +20,8 @@ export async function GET() {
         {
           id: "22222222-2222-4222-8222-222222222222",
           customerId: session.customerId,
-          name: "默认租户",
-          description: "官网 AI 客服默认租户",
+          name: "官网客服",
+          description: "营销官网默认转化工作区",
           status: "active",
         },
         {

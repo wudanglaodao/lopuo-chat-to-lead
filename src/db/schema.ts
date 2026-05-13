@@ -61,10 +61,11 @@ export const sites = pgTable(
     }),
     name: text("name").notNull(),
     domain: text("domain").notNull(),
-    widgetName: text("widget_name").notNull().default("AI 助理"),
+    widgetName: text("widget_name").notNull().default("AI 营销助手"),
+    welcomeTitle: text("welcome_title").notNull().default("您好，我是 AI 营销助手"),
     welcomeMessage: text("welcome_message").notNull(),
     themeColor: text("theme_color").notNull().default("#16a34a"),
-    launcherText: text("launcher_text").notNull().default("AI 助理"),
+    launcherText: text("launcher_text").notNull().default("咨询方案"),
     launcherStyle: text("launcher_style").notNull().default("vertical"),
     launcherImageUrl: text("launcher_image_url"),
     launcherBadgeText: text("launcher_badge_text"),
@@ -79,6 +80,12 @@ export const sites = pgTable(
       .default(sql`'[]'::jsonb`),
     showSources: boolean("show_sources").notNull().default(true),
     collectLeadEnabled: boolean("collect_lead_enabled").notNull().default(true),
+    aiTone: text("ai_tone").notNull().default("friendly"),
+    toneKeywords: jsonb("tone_keywords")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'["友好","克制","先理解意图","不急于留资","像真人客服同事"]'::jsonb`),
+    businessFlow: text("business_flow"),
     systemPrompt: text("system_prompt"),
     deepseekModel: text("deepseek_model"),
     embeddingModel: text("embedding_model"),

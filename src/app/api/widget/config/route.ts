@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
     launcherImageUrl: site.launcherImageUrl,
     launcherBadgeText: site.launcherBadgeText,
     launcherAnimation: site.launcherAnimation,
+    welcomeTitle: site.welcomeTitle,
     welcomeMessage: site.welcomeMessage,
     themeColor: site.themeColor,
     suggestedQuestions: site.suggestedQuestions,

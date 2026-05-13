@@ -9,11 +9,26 @@ export default async function WidgetPage({
 }) {
   const params = await searchParams;
   return (
-    <WidgetApp
-      siteId={params.siteId || ""}
-      tenantId={params.tenantId || ""}
-      previewStyle={params.previewStyle || ""}
-      previewText={params.previewText || ""}
-    />
+    <>
+      <style>{`
+        html,
+        body {
+          background: transparent !important;
+          color-scheme: normal;
+        }
+
+        body {
+          margin: 0;
+          min-height: 100dvh;
+          overflow: hidden;
+        }
+      `}</style>
+      <WidgetApp
+        siteId={params.siteId || ""}
+        tenantId={params.tenantId || ""}
+        previewStyle={params.previewStyle || ""}
+        previewText={params.previewText || ""}
+      />
+    </>
   );
 }

@@ -45,7 +45,7 @@ export function LoginForm() {
             name="email"
             type="email"
             required
-            placeholder="admin@example.com"
+            placeholder="name@company.com"
             className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-[#1f2024] outline-none placeholder:text-[#a8adb6] dark:text-white dark:placeholder:text-white/30"
           />
         </span>
@@ -58,7 +58,7 @@ export function LoginForm() {
             name="password"
             type="password"
             required
-            placeholder="change-me"
+            placeholder="请输入密码"
             className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-[#1f2024] outline-none placeholder:text-[#a8adb6] dark:text-white dark:placeholder:text-white/30"
           />
         </span>
@@ -71,7 +71,7 @@ export function LoginForm() {
         disabled={isLoading}
         className="group flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2f7df6] px-4 py-4 text-[15px] font-bold text-white shadow-[0_16px_34px_rgba(47,125,246,0.28)] transition hover:-translate-y-0.5 hover:bg-[#1d6ef0] disabled:translate-y-0 disabled:opacity-60"
       >
-        {isLoading ? "登录中..." : "登录"}
+        {isLoading ? "登录中..." : "进入控制台"}
         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
       </button>
     </form>

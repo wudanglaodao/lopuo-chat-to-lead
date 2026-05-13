@@ -26,7 +26,7 @@ export function ThemeToggle() {
         ].join(" ")}
       >
         <SunMedium className="h-4 w-4" />
-        Light
+        浅色
       </button>
       <button
         type="button"
@@ -35,12 +35,12 @@ export function ThemeToggle() {
         className={[
           "flex items-center justify-center gap-2 rounded-[17px] px-3 py-3 text-sm font-bold transition",
           theme === "dark"
-            ? "bg-[#1f2329] text-white shadow-sm dark:bg-white dark:text-[#1f2024]"
+            ? "bg-[#ff6b4a] text-white shadow-sm dark:bg-[#ff6b4a] dark:text-white"
             : "text-[#777e89] hover:text-[#1f2024] dark:text-white/55 dark:hover:text-white",
         ].join(" ")}
       >
         <Moon className="h-4 w-4" />
-        Dark
+        深色
       </button>
     </div>
   );

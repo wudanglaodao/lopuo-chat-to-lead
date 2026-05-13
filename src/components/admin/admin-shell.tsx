@@ -2,6 +2,9 @@ import {
   ArrowDown,
   ArrowUp,
   Bell,
+  Check,
+  ChevronDown,
+  ChevronRight,
   CircleHelp,
   Command,
   DatabaseZap,
@@ -9,15 +12,16 @@ import {
   Info,
   LogOut,
   MessageSquareText,
+  MousePointerClick,
   Search,
   Settings2,
   Sparkles,
-  MousePointerClick,
   UserRoundCheck,
 } from "lucide-react";
 import Link from "next/link";
 
 import { logoutAction } from "@/app/admin/actions";
+import { BrandLogo } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/admin/theme-toggle";
 
 const navItems = [
@@ -27,51 +31,117 @@ const navItems = [
   { href: "/admin/settings", label: "设置", icon: Settings2 },
 ];
 
+type TenantSwitcher = {
+  activeTenantId?: string | null;
+  hrefBase: string;
+  tenants: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+  }>;
+  query?: Record<string, string | null | undefined>;
+};
+
+type SettingsSubnavItem = {
+  href: string;
+  label: string;
+  description: string;
+  active?: boolean;
+};
+
+type SettingsSubnavGroup = {
+  label: string;
+  description: string;
+  items: SettingsSubnavItem[];
+};
+
 export function AdminShell({
   children,
   title,
   description,
+  tenantSwitcher,
+  settingsSubnav,
 }: {
   children: React.ReactNode;
   title: string;
   description: string;
+  tenantSwitcher?: TenantSwitcher;
+  settingsSubnav?: SettingsSubnavGroup[];
 }) {
   return (
     <main className="min-h-screen bg-[#f4f4f5] text-[#1f2024] transition-colors dark:bg-[#101216] dark:text-white">
       <aside className="fixed inset-y-0 left-0 hidden w-[288px] border-r border-black/[0.06] bg-white/80 p-5 backdrop-blur-xl transition-colors dark:border-white/10 dark:bg-[#171a20]/88 md:block">
-        <Link href="/admin" className="flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-[18px] bg-[#1f2329] text-white shadow-[0_14px_30px_rgba(31,35,41,0.18)] dark:bg-white dark:text-[#1f2329]">
-            <Sparkles className="h-5 w-5" />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold text-[#1f2024] dark:text-white">Lopuo AI</span>
-            <span className="mt-0.5 block text-xs font-medium text-[#777e89]">客服控制台</span>
-          </span>
+        <Link href="/admin" className="flex items-center">
+          <BrandLogo markClassName="h-12 w-12 rounded-[18px]" showTagline tagline="线索转化台" />
         </Link>
         <nav className="mt-14 space-y-3">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = item.label === title;
+
+            if (item.href === "/admin/settings" && settingsSubnav?.length) {
+              return (
+                <details key={item.href} className="group/settings" open={active}>
+                  <summary
+                    className={[
+                      "group flex cursor-pointer list-none items-center gap-4 rounded-[18px] px-4 py-4 text-[15px] font-semibold transition duration-200 [&::-webkit-details-marker]:hidden",
+                      active
+                        ? "bg-[#f0f0f1] text-[#1f2024] shadow-[inset_0_-1px_0_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.05)] dark:bg-white/10 dark:text-white"
+                        : "text-[#777e89] hover:bg-[#f6f6f7] hover:text-[#1f2024] dark:text-white/55 dark:hover:bg-white/[0.06] dark:hover:text-white",
+                    ].join(" ")}
+                  >
+                    <Icon
+                      className={
+                        active
+                          ? "h-5 w-5 text-[#1f2024] dark:text-white"
+                          : "h-5 w-5 text-[#747b85] transition group-hover:text-[#1f2024] dark:text-white/45 dark:group-hover:text-white"
+                      }
+                    />
+                    <span>设置</span>
+                    <ChevronRight className="ml-auto h-4 w-4 text-[#9aa0aa] transition group-open/settings:rotate-90" />
+                  </summary>
+                  <div className="ml-8 mt-3 space-y-1.5 border-l border-black/[0.06] pl-4 dark:border-white/10">
+                    {settingsSubnav.map((group) => (
+                      <Link
+                        key={group.label}
+                        href={group.items[0]?.href || "/admin/settings"}
+                        className={[
+                          "block rounded-[14px] px-3 py-2.5 transition",
+                          group.items.some((subItem) => subItem.active)
+                            ? "bg-[#ff6b4a] text-white shadow-[0_10px_24px_rgba(255,107,74,0.18)] dark:bg-[#ff6b4a] dark:text-white"
+                            : "text-[#777e89] hover:bg-[#f6f6f7] hover:text-[#1f2024] dark:text-white/45 dark:hover:bg-white/8 dark:hover:text-white",
+                        ].join(" ")}
+                      >
+                        <span className="block text-sm font-bold">{group.label}</span>
+                        <span className="mt-0.5 block truncate text-xs font-semibold opacity-65">{group.description}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+              );
+            }
+
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={[
-                  "group flex items-center gap-4 rounded-[18px] px-4 py-4 text-[15px] font-semibold transition duration-200",
-                  active
-                    ? "bg-[#f0f0f1] text-[#1f2024] shadow-[inset_0_-1px_0_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.05)] dark:bg-white/10 dark:text-white"
-                    : "text-[#777e89] hover:bg-[#f6f6f7] hover:text-[#1f2024] dark:text-white/55 dark:hover:bg-white/[0.06] dark:hover:text-white",
-                ].join(" ")}
-              >
-                <Icon
-                  className={
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  className={[
+                    "group flex items-center gap-4 rounded-[18px] px-4 py-4 text-[15px] font-semibold transition duration-200",
                     active
-                      ? "h-5 w-5 text-[#1f2024] dark:text-white"
-                      : "h-5 w-5 text-[#747b85] transition group-hover:text-[#1f2024] dark:text-white/45 dark:group-hover:text-white"
-                  }
-                />
-                {item.label}
-              </Link>
+                      ? "bg-[#f0f0f1] text-[#1f2024] shadow-[inset_0_-1px_0_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.05)] dark:bg-white/10 dark:text-white"
+                      : "text-[#777e89] hover:bg-[#f6f6f7] hover:text-[#1f2024] dark:text-white/55 dark:hover:bg-white/[0.06] dark:hover:text-white",
+                  ].join(" ")}
+                >
+                  <Icon
+                    className={
+                      active
+                        ? "h-5 w-5 text-[#1f2024] dark:text-white"
+                        : "h-5 w-5 text-[#747b85] transition group-hover:text-[#1f2024] dark:text-white/45 dark:group-hover:text-white"
+                    }
+                  />
+                  {item.label}
+                </Link>
+              </div>
             );
           })}
         </nav>
@@ -81,7 +151,7 @@ export function AdminShell({
             <div className="flex items-center justify-between rounded-[18px] px-4 py-3 text-[#777e89] dark:text-white/55">
               <span className="flex items-center gap-3 text-sm font-semibold">
                 <CircleHelp className="h-5 w-5" />
-                Help & support
+                转化手册
               </span>
               <span className="rounded-lg bg-[#d8c7ff] px-2.5 py-1 text-sm font-bold text-[#31224f]">8</span>
             </div>
@@ -103,7 +173,7 @@ export function AdminShell({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="hidden min-w-[320px] items-center gap-3 rounded-[18px] bg-[#f3f3f4] px-4 py-3 text-[#9aa0aa] dark:bg-white/8 dark:text-white/45 md:flex">
               <Search className="h-5 w-5" />
-              <span className="text-sm font-semibold">Search or type a command</span>
+              <span className="text-sm font-semibold">搜索线索、会话或命令</span>
               <span className="ml-auto flex items-center gap-1 rounded-xl bg-white px-3 py-2 text-sm font-bold text-[#1f2024] shadow-sm dark:bg-white/12 dark:text-white">
                 <Command className="h-4 w-4" /> F
               </span>
@@ -127,9 +197,13 @@ export function AdminShell({
               >
                 <Bell className="h-5 w-5" />
               </button>
-              <span className="rounded-2xl bg-[#2f7df6] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(47,125,246,0.24)]">
-                Demo 模式
-              </span>
+              {tenantSwitcher?.tenants.length ? (
+                <TenantSwitcherControl {...tenantSwitcher} />
+              ) : (
+                <span className="rounded-2xl bg-[#2f7df6] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(47,125,246,0.24)]">
+                  预览模式
+                </span>
+              )}
             </div>
           </div>
         </header>
@@ -143,6 +217,65 @@ export function AdminShell({
       </section>
     </main>
   );
+}
+
+function TenantSwitcherControl({ activeTenantId, hrefBase, tenants, query }: TenantSwitcher) {
+  const activeTenant = tenants.find((tenant) => tenant.id === activeTenantId) || tenants[0];
+
+  return (
+    <details className="group relative">
+      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl bg-[#2f7df6] px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(47,125,246,0.24)] transition hover:-translate-y-0.5 hover:bg-[#1d6ef0] [&::-webkit-details-marker]:hidden">
+        <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/18">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <span className="max-w-[128px] truncate">{activeTenant?.name || "切换租户"}</span>
+        <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+      </summary>
+      <div className="absolute right-0 top-full z-30 mt-3 w-72 overflow-hidden rounded-[22px] border border-black/[0.06] bg-white p-2 shadow-[0_24px_60px_rgba(31,32,36,0.16)] dark:border-white/10 dark:bg-[#20242b]">
+        <div className="px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-[#9aa0aa] dark:text-white/40">切换租户</div>
+        <div className="space-y-1">
+          {tenants.map((tenant) => {
+            const active = tenant.id === activeTenant?.id;
+            return (
+              <Link
+                key={tenant.id}
+                href={buildTenantHref(hrefBase, tenant.id, query)}
+                className={[
+                  "flex items-start gap-3 rounded-[16px] px-3 py-3 text-sm transition",
+                  active
+                    ? "bg-[#f0f6ff] text-[#1f2024] dark:bg-white/10 dark:text-white"
+                    : "text-[#5d646f] hover:bg-[#f6f6f7] hover:text-[#2f7df6] dark:text-white/60 dark:hover:bg-white/8 dark:hover:text-white",
+                ].join(" ")}
+              >
+                <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#d9f2ff] text-[#1f2024] dark:bg-[#9bdcff]">
+                  {active ? <Check className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate font-bold">{tenant.name}</span>
+                  <span className="mt-0.5 block truncate text-xs font-semibold text-[#9aa0aa] dark:text-white/40">
+                    {tenant.description || "独立知识库、会话与留资线索"}
+                  </span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function buildTenantHref(hrefBase: string, tenantId: string, query?: Record<string, string | null | undefined>) {
+  const params = new URLSearchParams();
+  if (query) {
+    Object.entries(query).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value);
+      }
+    });
+  }
+  params.set("tenantId", tenantId);
+  return `${hrefBase}?${params.toString()}`;
 }
 
 export function StatCard({

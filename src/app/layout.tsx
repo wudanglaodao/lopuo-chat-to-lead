@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lopuo AI 客服",
-  description: "官网 AI 客服系统 MVP",
+  title: "Lopuo Signal",
+  description: "面向营销型官网的知识库客服与 AI 留咨转化工作台",
 };
 
 export default function RootLayout({

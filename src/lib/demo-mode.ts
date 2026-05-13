@@ -1,4 +1,11 @@
-import { DEFAULT_SUGGESTED_QUESTIONS, DEFAULT_WELCOME_MESSAGE } from "@/lib/defaults";
+import {
+  DEFAULT_AI_TONE,
+  DEFAULT_BUSINESS_FLOW,
+  DEFAULT_SUGGESTED_QUESTIONS,
+  DEFAULT_TONE_KEYWORDS,
+  DEFAULT_WELCOME_MESSAGE,
+  DEFAULT_WELCOME_TITLE,
+} from "@/lib/defaults";
 import {
   buildLowConfidenceMessage,
   buildSensitiveBusinessMessage,
@@ -30,17 +37,21 @@ export function getDemoWidgetConfig({
     siteId,
     tenantId: DEMO_TENANT_ID,
     customerId: DEMO_CUSTOMER_ID,
-    widgetName: "AI 助理",
-    launcherText: previewText || (launcherStyle === "pill" ? "与 AI 聊天" : "AI 助理"),
+    widgetName: "AI 营销助手",
+    launcherText: previewText || (launcherStyle === "pill" ? "获取方案" : "咨询方案"),
     launcherStyle,
     launcherImageUrl: "",
     launcherBadgeText: "1",
     launcherAnimation: "pulse",
+    welcomeTitle: DEFAULT_WELCOME_TITLE,
     welcomeMessage: DEFAULT_WELCOME_MESSAGE,
     themeColor: "#ff0a68",
     suggestedQuestions: DEFAULT_SUGGESTED_QUESTIONS,
     showSources: true,
     collectLeadEnabled: true,
+    aiTone: DEFAULT_AI_TONE,
+    toneKeywords: DEFAULT_TONE_KEYWORDS,
+    businessFlow: DEFAULT_BUSINESS_FLOW,
   };
 }
 
@@ -58,10 +69,10 @@ export function buildDemoAssistantMessage(message: string) {
   }
 
   return [
-    "这是开发演示模式下的模拟回复。",
+    "这是 Lopuo Signal 演示模式下的模拟回复。",
     "",
-    `关于「${message.slice(0, 80)}」，AI 助理会先基于客户官网知识库整理答案；如果问题涉及报价、合同或交付承诺，会引导留下联系方式由同事跟进。`,
+    `关于「${message.slice(0, 80)}」，AI 营销助手会先基于客户知识库整理答案；如果问题涉及报价、合作细节或交付承诺，会自然引导访客留下联系方式，由销售继续跟进。`,
     "",
-    "配置数据库、知识库和模型 Key 后，这里会切换为真实 RAG + 大模型回复。",
+    "配置数据库、素材库和模型 Key 后，这里会切换为真实检索 + 大模型回复。",
   ].join("\n");
 }
