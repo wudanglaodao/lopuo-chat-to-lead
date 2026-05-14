@@ -8,7 +8,14 @@ import { DEFAULT_AI_TONE, DEFAULT_BUSINESS_FLOW, DEFAULT_TONE_KEYWORDS, DEFAULT_
 import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 import { WIDGET_LOGO_TYPES, normalizeWidgetLogoText, normalizeWidgetLogoType } from "@/lib/widget-brand";
 import { SUPPORTED_WIDGET_LOCALES } from "@/lib/widget-i18n";
-import { LAUNCHER_POSITIONS, MAX_LAUNCHER_BOTTOM_OFFSET } from "@/lib/widget-launcher";
+import {
+  LAUNCHER_POSITIONS,
+  MAX_LAUNCHER_BOTTOM_OFFSET,
+  MAX_LAUNCHER_HORIZONTAL_OFFSET,
+  MAX_WIDGET_CUSTOM_CODE_LENGTH,
+  normalizeWidgetCustomCss,
+  normalizeWidgetCustomJs,
+} from "@/lib/widget-launcher";
 
 const settingsSchema = z.object({
   defaultTenantId: z.string().uuid().optional().nullable(),
@@ -23,9 +30,13 @@ const settingsSchema = z.object({
   launcherStyle: z.enum(["pill", "vertical", "mascot"]),
   launcherPosition: z.enum(LAUNCHER_POSITIONS).default("bottom-right"),
   launcherBottomOffset: z.coerce.number().int().min(0).max(MAX_LAUNCHER_BOTTOM_OFFSET).default(20),
+  launcherHorizontalOffset: z.coerce.number().int().min(0).max(MAX_LAUNCHER_HORIZONTAL_OFFSET).default(20),
   launcherImageUrl: z.string().url().optional().nullable().or(z.literal("")),
   launcherBadgeText: z.string().max(8).optional().nullable(),
   launcherAnimation: z.enum(["none", "pulse", "bounce", "float"]),
+  widgetAdvancedEnabled: z.boolean().default(false),
+  widgetCustomCss: z.string().max(MAX_WIDGET_CUSTOM_CODE_LENGTH).optional().nullable(),
+  widgetCustomJs: z.string().max(MAX_WIDGET_CUSTOM_CODE_LENGTH).optional().nullable(),
   suggestedQuestions: z.array(z.string().min(1).max(160)).min(1).max(8),
   allowedOrigins: z.array(z.string().min(1).max(200)).max(20),
   showSources: z.boolean(),
@@ -80,6 +91,8 @@ export async function PUT(request: NextRequest) {
     widgetLogoType: normalizeWidgetLogoType(body.widgetLogoType),
     widgetLogoUrl: body.widgetLogoUrl || null,
     widgetLogoText: normalizeWidgetLogoText(body.widgetLogoText || body.widgetName),
+    widgetCustomCss: body.widgetAdvancedEnabled ? normalizeWidgetCustomCss(body.widgetCustomCss || "") || null : null,
+    widgetCustomJs: body.widgetAdvancedEnabled ? normalizeWidgetCustomJs(body.widgetCustomJs || "") || null : null,
   };
   if (isDemoMode()) {
     return NextResponse.json({

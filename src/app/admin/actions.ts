@@ -14,7 +14,13 @@ import {
   normalizeWidgetLocale,
 } from "@/lib/widget-i18n";
 import { DEFAULT_WIDGET_LOGO_URL, normalizeWidgetLogoText, normalizeWidgetLogoType } from "@/lib/widget-brand";
-import { normalizeLauncherBottomOffset, normalizeLauncherPosition } from "@/lib/widget-launcher";
+import {
+  normalizeLauncherBottomOffset,
+  normalizeLauncherHorizontalOffset,
+  normalizeLauncherPosition,
+  normalizeWidgetCustomCss,
+  normalizeWidgetCustomJs,
+} from "@/lib/widget-launcher";
 
 export async function logoutAction() {
   await clearSessionCookie();
@@ -229,9 +235,17 @@ export async function updateSettingsAction(formData: FormData) {
     values.launcherStyle = String(formData.get("launcherStyle") || "vertical");
     values.launcherPosition = normalizeLauncherPosition(String(formData.get("launcherPosition") || ""));
     values.launcherBottomOffset = normalizeLauncherBottomOffset(String(formData.get("launcherBottomOffset") || ""));
+    values.launcherHorizontalOffset = normalizeLauncherHorizontalOffset(String(formData.get("launcherHorizontalOffset") || ""));
     values.launcherImageUrl = String(formData.get("launcherImageUrl") || "").trim() || null;
     values.launcherBadgeText = String(formData.get("launcherBadgeText") || "").trim() || null;
     values.launcherAnimation = String(formData.get("launcherAnimation") || "pulse");
+    values.widgetAdvancedEnabled = formData.get("widgetAdvancedEnabled") === "on";
+    values.widgetCustomCss = values.widgetAdvancedEnabled
+      ? normalizeWidgetCustomCss(String(formData.get("widgetCustomCss") || "")) || null
+      : null;
+    values.widgetCustomJs = values.widgetAdvancedEnabled
+      ? normalizeWidgetCustomJs(String(formData.get("widgetCustomJs") || "")) || null
+      : null;
   }
 
   if (section === "content" || section === "all") {

@@ -7,7 +7,15 @@ export const dynamic = "force-dynamic";
 export default async function DemoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ style?: string; text?: string; position?: string; bottomOffset?: string; tenantId?: string; locale?: string }>;
+  searchParams: Promise<{
+    style?: string;
+    text?: string;
+    position?: string;
+    horizontalOffset?: string;
+    bottomOffset?: string;
+    tenantId?: string;
+    locale?: string;
+  }>;
 }) {
   const params = await searchParams;
   const siteId = process.env.DEFAULT_SITE_ID || DEMO_SITE_ID;
@@ -51,7 +59,10 @@ export default async function DemoPage({
         data-preview-style={params.style || ""}
         data-preview-text={params.text || ""}
         data-preview-position={params.position || ""}
+        data-preview-horizontal-offset={params.horizontalOffset || ""}
         data-preview-bottom-offset={params.bottomOffset || ""}
+        data-launcher-position={params.position || ""}
+        data-launcher-horizontal-offset={params.horizontalOffset || ""}
         data-launcher-bottom-offset={params.bottomOffset || ""}
         strategy="afterInteractive"
       />

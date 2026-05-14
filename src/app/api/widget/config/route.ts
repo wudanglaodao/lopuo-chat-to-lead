@@ -4,6 +4,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb, sites, tenants } from "@/db";
 import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 import { isAllowedOrigin } from "@/lib/utils";
+import {
+  normalizeLauncherBottomOffset,
+  normalizeLauncherHorizontalOffset,
+  normalizeLauncherPosition,
+  normalizeWidgetCustomCss,
+  normalizeWidgetCustomJs,
+} from "@/lib/widget-launcher";
 
 export async function GET(request: NextRequest) {
   const siteId = request.nextUrl.searchParams.get("siteId");
@@ -21,6 +28,7 @@ export async function GET(request: NextRequest) {
         previewText: request.nextUrl.searchParams.get("previewText"),
         previewPosition: request.nextUrl.searchParams.get("previewPosition"),
         previewBottomOffset: request.nextUrl.searchParams.get("previewBottomOffset"),
+        previewHorizontalOffset: request.nextUrl.searchParams.get("previewHorizontalOffset"),
       }),
     );
   }
@@ -62,11 +70,15 @@ export async function GET(request: NextRequest) {
     widgetLogoText: site.widgetLogoText,
     launcherText: site.launcherText,
     launcherStyle: site.launcherStyle,
-    launcherPosition: site.launcherPosition,
-    launcherBottomOffset: site.launcherBottomOffset,
+    launcherPosition: normalizeLauncherPosition(site.launcherPosition),
+    launcherBottomOffset: normalizeLauncherBottomOffset(site.launcherBottomOffset),
+    launcherHorizontalOffset: normalizeLauncherHorizontalOffset(site.launcherHorizontalOffset),
     launcherImageUrl: site.launcherImageUrl,
     launcherBadgeText: site.launcherBadgeText,
     launcherAnimation: site.launcherAnimation,
+    widgetAdvancedEnabled: site.widgetAdvancedEnabled,
+    widgetCustomCss: site.widgetAdvancedEnabled ? normalizeWidgetCustomCss(site.widgetCustomCss || "") : "",
+    widgetCustomJs: site.widgetAdvancedEnabled ? normalizeWidgetCustomJs(site.widgetCustomJs || "") : "",
     welcomeTitle: site.welcomeTitle,
     welcomeMessage: site.welcomeMessage,
     themeColor: site.themeColor,

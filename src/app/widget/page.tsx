@@ -12,6 +12,7 @@ export default async function WidgetPage({
     previewStyle?: string;
     previewText?: string;
     previewPosition?: string;
+    previewHorizontalOffset?: string;
     previewBottomOffset?: string;
   }>;
 }) {
@@ -38,6 +39,7 @@ export default async function WidgetPage({
         previewStyle={params.previewStyle || ""}
         previewText={params.previewText || ""}
         previewPosition={params.previewPosition || ""}
+        previewHorizontalOffset={params.previewHorizontalOffset || ""}
         previewBottomOffset={params.previewBottomOffset || ""}
       />
     </>

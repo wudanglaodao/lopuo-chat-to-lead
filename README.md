@@ -92,11 +92,13 @@ ALLOW_FAKE_LLM=true
   src="https://lopuo.work/widget.js"
   data-site-id="11111111-1111-4111-8111-111111111111"
   data-tenant-id="22222222-2222-4222-8222-222222222222"
+  data-launcher-position="bottom-right"
+  data-launcher-horizontal-offset="20"
   data-launcher-bottom-offset="20">
 </script>
 ```
 
-Widget 使用 iframe 隔离样式，打开时会自动调整尺寸。`data-tenant-id` 可省略，省略时使用站点默认租户；如果同一个企业要在不同页面接入不同知识库，可以为不同入口指定不同租户 ID。`data-launcher-bottom-offset` 可配置入口和桌面弹窗距离页面底部的像素值，默认 `20`。
+Widget 使用 iframe 隔离样式，打开时会自动调整尺寸。`data-tenant-id` 可省略，省略时使用站点默认租户；如果同一个企业要在不同页面接入不同知识库，可以为不同入口指定不同租户 ID。`data-launcher-position` 支持 `bottom-right` / `bottom-left`，`data-launcher-horizontal-offset` 和 `data-launcher-bottom-offset` 可配置入口和桌面弹窗距离侧边、底部的像素值，默认均为 `20`。
 
 ## 代码仓库
 

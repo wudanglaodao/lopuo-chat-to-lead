@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, Bot, Check, Copy, ExternalLink, MessageCircle, Send, Sparkles, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   WIDGET_UI_TEXT,
@@ -20,6 +20,7 @@ import {
 import {
   isLauncherPosition,
   normalizeLauncherBottomOffset,
+  normalizeLauncherHorizontalOffset,
   type LauncherPosition,
   normalizeLauncherPosition,
 } from "@/lib/widget-launcher";
@@ -35,9 +36,13 @@ type WidgetConfig = {
   launcherStyle: "pill" | "vertical" | "mascot";
   launcherPosition: LauncherPosition;
   launcherBottomOffset: number;
+  launcherHorizontalOffset: number;
   launcherImageUrl?: string | null;
   launcherBadgeText?: string | null;
   launcherAnimation: "none" | "pulse" | "bounce" | "float";
+  widgetAdvancedEnabled: boolean;
+  widgetCustomCss?: string | null;
+  widgetCustomJs?: string | null;
   welcomeTitle: string;
   welcomeMessage: string;
   themeColor: string;
@@ -76,6 +81,7 @@ export function WidgetApp({
   previewStyle,
   previewText,
   previewPosition,
+  previewHorizontalOffset,
   previewBottomOffset,
 }: {
   siteId: string;
@@ -84,6 +90,7 @@ export function WidgetApp({
   previewStyle?: string;
   previewText?: string;
   previewPosition?: string;
+  previewHorizontalOffset?: string;
   previewBottomOffset?: string;
 }) {
   const [config, setConfig] = useState<WidgetConfig | null>(null);
@@ -95,13 +102,19 @@ export function WidgetApp({
   const [error, setError] = useState("");
   const [showLeadPrompt, setShowLeadPrompt] = useState(false);
   const [leadSaved, setLeadSaved] = useState(false);
+  const didRunReadyHook = useRef(false);
+  const lastOpenHookState = useRef<boolean | null>(null);
   const previewLauncherStyle = normalizeLauncherStyle(previewStyle);
   const previewLauncherPosition = isLauncherPosition(previewPosition) ? previewPosition : "";
+  const previewLauncherHorizontalOffset = hasExplicitValue(previewHorizontalOffset)
+    ? normalizeLauncherHorizontalOffset(previewHorizontalOffset)
+    : null;
   const previewLauncherBottomOffset = hasExplicitValue(previewBottomOffset)
     ? normalizeLauncherBottomOffset(previewBottomOffset)
     : null;
   const launcherStyle = previewLauncherStyle || config?.launcherStyle;
   const launcherPosition = previewLauncherPosition || normalizeLauncherPosition(config?.launcherPosition);
+  const launcherHorizontalOffset = previewLauncherHorizontalOffset ?? normalizeLauncherHorizontalOffset(config?.launcherHorizontalOffset);
   const launcherBottomOffset = previewLauncherBottomOffset ?? normalizeLauncherBottomOffset(config?.launcherBottomOffset);
 
   const visitorId = useMemo(() => {
@@ -156,11 +169,31 @@ export function WidgetApp({
         open: isOpen,
         launcherStyle: launcherStyle || "vertical",
         launcherPosition,
+        launcherHorizontalOffset,
         launcherBottomOffset,
       },
       "*",
     );
-  }, [isOpen, launcherBottomOffset, launcherPosition, launcherStyle]);
+    runWidgetCustomJsHook(config, "onResize");
+  }, [config, isOpen, launcherBottomOffset, launcherHorizontalOffset, launcherPosition, launcherStyle]);
+
+  useEffect(() => {
+    if (!config?.widgetAdvancedEnabled || didRunReadyHook.current) {
+      return;
+    }
+
+    didRunReadyHook.current = true;
+    runWidgetCustomJsHook(config, "onReady");
+  }, [config]);
+
+  useEffect(() => {
+    if (!config?.widgetAdvancedEnabled || lastOpenHookState.current === isOpen) {
+      return;
+    }
+
+    lastOpenHookState.current = isOpen;
+    runWidgetCustomJsHook(config, isOpen ? "onOpen" : "onClose");
+  }, [config, isOpen]);
 
   useEffect(() => {
     if (!siteId) {
@@ -174,6 +207,7 @@ export function WidgetApp({
       previewStyle: previewStyle || "",
       previewText: previewText || "",
       previewPosition: previewPosition || "",
+      previewHorizontalOffset: previewHorizontalOffset || "",
       previewBottomOffset: previewBottomOffset || "",
     });
 
@@ -184,7 +218,17 @@ export function WidgetApp({
       })
       .then(setConfig)
       .catch((err: Error) => setError(err.message));
-  }, [siteId, tenantId, requestedLocale, previewStyle, previewText, previewPosition, previewBottomOffset, uiText.configLoadFailed]);
+  }, [
+    siteId,
+    tenantId,
+    requestedLocale,
+    previewStyle,
+    previewText,
+    previewPosition,
+    previewHorizontalOffset,
+    previewBottomOffset,
+    uiText.configLoadFailed,
+  ]);
 
   const ensureConversation = useCallback(async () => {
     if (conversationId) {
@@ -306,6 +350,7 @@ export function WidgetApp({
   const themeColor = config?.themeColor || "#16a34a";
   const welcomeMessage = localizedCopy.welcomeMessage;
   const suggestedQuestions = localizedCopy.suggestedQuestions;
+  const customCss = config?.widgetAdvancedEnabled ? config.widgetCustomCss || "" : "";
 
   if (!isOpen) {
     if (!launcherStyle) {
@@ -313,26 +358,30 @@ export function WidgetApp({
     }
 
     return (
-      <LauncherButton
-        config={config}
-        launcherStyle={launcherStyle}
-        copy={localizedCopy}
-        uiText={uiText}
-        onOpen={() => setIsOpen(true)}
-      />
+      <div className="lopuo-widget flex h-[100dvh] w-full items-center justify-center bg-transparent">
+        {customCss ? <style data-lopuo-custom>{customCss}</style> : null}
+        <LauncherButton
+          config={config}
+          launcherStyle={launcherStyle}
+          copy={localizedCopy}
+          uiText={uiText}
+          onOpen={() => setIsOpen(true)}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col items-end justify-end bg-transparent text-[#17191d]">
+    <div className="lopuo-widget flex h-[100dvh] w-full flex-col items-end justify-end bg-transparent text-[#17191d]">
+      {customCss ? <style data-lopuo-custom>{customCss}</style> : null}
       <main
-        className="mb-3 flex h-[calc(100dvh-68px)] min-h-0 w-full flex-col overflow-hidden rounded-[22px] border border-black/[0.08]"
+        className="lopuo-widget-panel mb-3 flex h-[calc(100dvh-68px)] min-h-0 w-full flex-col overflow-hidden rounded-[22px] border border-black/[0.08]"
         style={{
           background:
             "radial-gradient(circle at 14% 8%, rgba(255,107,74,0.10), transparent 28%), radial-gradient(circle at 92% 0%, rgba(47,125,246,0.10), transparent 24%), linear-gradient(180deg, #fbfcff 0%, #f5f8fb 52%, #eef4f7 100%)",
         }}
       >
-        <header className="relative border-b border-black/[0.06] bg-white/45 px-4 pb-3 pt-3 backdrop-blur">
+        <header className="lopuo-widget-header relative border-b border-black/[0.06] bg-white/45 px-4 pb-3 pt-3 backdrop-blur">
           <div className="flex h-12 items-center justify-between">
             <div className="flex h-11 min-w-0 items-center">
               <WidgetHeaderBrand
@@ -347,7 +396,7 @@ export function WidgetApp({
               aria-label={uiText.close}
               title={uiText.close}
               onClick={() => setIsOpen(false)}
-              className="grid h-8 w-8 place-items-center rounded-full text-stone-400 transition hover:bg-white hover:text-stone-700 hover:shadow-[0_6px_16px_rgba(15,23,42,0.08)]"
+              className="lopuo-widget-close grid h-8 w-8 place-items-center rounded-full text-stone-400 transition hover:bg-white hover:text-stone-700 hover:shadow-[0_6px_16px_rgba(15,23,42,0.08)]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -368,7 +417,7 @@ export function WidgetApp({
         </header>
 
         <section
-          className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+          className="lopuo-widget-body min-h-0 flex-1 overflow-y-auto px-4 py-4"
           style={{
             backgroundImage:
               "linear-gradient(rgba(15,23,42,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.025) 1px, transparent 1px)",
@@ -474,7 +523,7 @@ export function WidgetApp({
             event.preventDefault();
             sendMessage(input);
           }}
-          className="bg-white/35 px-4 pb-4 pt-2 backdrop-blur"
+          className="lopuo-widget-footer bg-white/35 px-4 pb-4 pt-2 backdrop-blur"
         >
           <div className="flex items-end gap-2 rounded-[18px] border border-black/[0.08] bg-white px-4 py-2 shadow-[0_8px_18px_rgba(15,23,42,0.06)] transition focus-within:border-stone-300">
             <textarea
@@ -620,7 +669,7 @@ function LauncherButton({
       <button
         type="button"
         onClick={onOpen}
-        className={`group fixed bottom-4 right-4 flex h-16 w-[244px] items-center gap-3 overflow-hidden rounded-full border bg-white px-4 text-left text-stone-900 shadow-[0_5px_14px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-0.5 active:translate-y-0 ${animationClass}`}
+        className={`lopuo-widget-launcher group relative flex h-16 w-[244px] items-center gap-3 overflow-hidden rounded-full border bg-white px-4 text-left text-stone-900 shadow-[0_5px_14px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-0.5 active:translate-y-0 ${animationClass}`}
         style={{
           borderColor: `color-mix(in srgb, ${themeColor} 28%, white)`,
         }}
@@ -642,7 +691,7 @@ function LauncherButton({
       <button
         type="button"
         onClick={onOpen}
-        className={`fixed bottom-2 right-2 grid h-[52px] w-[52px] place-items-center rounded-full border border-white/90 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition duration-200 hover:scale-[1.04] ${animationClass}`}
+        className={`lopuo-widget-launcher relative grid h-[52px] w-[52px] place-items-center rounded-full border border-white/90 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition duration-200 hover:scale-[1.04] ${animationClass}`}
       >
         <PulseRing enabled={animation === "pulse"} color={themeColor} rounded="999px" />
         <MascotAvatar imageUrl={config?.launcherImageUrl} color={themeColor} />
@@ -660,7 +709,7 @@ function LauncherButton({
     <button
       type="button"
       onClick={onOpen}
-      className={`fixed bottom-4 right-4 flex h-[154px] w-16 flex-col items-center justify-center gap-2.5 rounded-full border bg-white text-stone-900 shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition duration-200 hover:-translate-y-1 ${animationClass}`}
+      className={`lopuo-widget-launcher relative flex h-[154px] w-16 flex-col items-center justify-center gap-2.5 rounded-full border bg-white text-stone-900 shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition duration-200 hover:-translate-y-1 ${animationClass}`}
       style={{
         borderColor: `color-mix(in srgb, ${themeColor} 24%, transparent)`,
       }}
@@ -695,6 +744,47 @@ function normalizeLauncherStyle(style?: string | null): WidgetConfig["launcherSt
 
 function hasExplicitValue(value?: string | null) {
   return value !== undefined && value !== null && value.trim() !== "";
+}
+
+type WidgetCustomHook = "onReady" | "onOpen" | "onClose" | "onResize";
+
+function runWidgetCustomJsHook(config: WidgetConfig | null, hook: WidgetCustomHook) {
+  if (!config?.widgetAdvancedEnabled || !config.widgetCustomJs || typeof document === "undefined") {
+    return;
+  }
+
+  const actions = config.widgetCustomJs
+    .split(/\r?\n/)
+    .map((line) => line.trim().match(/^(onReady|onOpen|onClose|onResize):\s*(track|class|data|cssVar)=([A-Za-z0-9_.:-]{1,80})$/))
+    .filter((match): match is RegExpMatchArray => Boolean(match))
+    .filter((match) => match[1] === hook);
+
+  for (const action of actions) {
+    applyWidgetCustomAction(hook, action[2], action[3]);
+  }
+}
+
+function applyWidgetCustomAction(hook: WidgetCustomHook, action: string, value: string) {
+  const root = document.documentElement;
+
+  if (action === "track") {
+    window.parent.postMessage({ type: "lopuo-ai-widget-hook", hook, value }, "*");
+    return;
+  }
+
+  if (action === "class") {
+    root.classList.add(`lopuo-${value.replace(/[^A-Za-z0-9_-]/g, "-")}`);
+    return;
+  }
+
+  if (action === "data") {
+    root.dataset.lopuoWidgetHook = value;
+    return;
+  }
+
+  if (action === "cssVar") {
+    root.style.setProperty(`--lopuo-widget-${hook.toLowerCase()}`, value);
+  }
 }
 
 function WidgetHeaderBrand({

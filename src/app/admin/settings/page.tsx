@@ -24,7 +24,10 @@ import {
 } from "@/lib/widget-i18n";
 import {
   MAX_LAUNCHER_BOTTOM_OFFSET,
+  MAX_LAUNCHER_HORIZONTAL_OFFSET,
+  MAX_WIDGET_CUSTOM_CODE_LENGTH,
   normalizeLauncherBottomOffset,
+  normalizeLauncherHorizontalOffset,
   normalizeLauncherPosition,
 } from "@/lib/widget-launcher";
 
@@ -71,9 +74,10 @@ export default async function SettingsPage({
   const enabledLocales = normalizeEnabledLocales(site.enabledLocales || [], defaultLocale);
   const launcherPosition = normalizeLauncherPosition(site.launcherPosition);
   const launcherBottomOffset = normalizeLauncherBottomOffset(site.launcherBottomOffset);
+  const launcherHorizontalOffset = normalizeLauncherHorizontalOffset(site.launcherHorizontalOffset);
   const widgetLogoType = normalizeWidgetLogoType(site.widgetLogoType);
   const widgetLogoText = normalizeWidgetLogoText(site.widgetLogoText || site.widgetName || DEFAULT_WIDGET_LOGO_TEXT);
-  const embedCode = `<script src="${embedBaseUrl}/widget.js" data-site-id="${site.id}" data-launcher-bottom-offset="${launcherBottomOffset}"></script>`;
+  const embedCode = `<script src="${embedBaseUrl}/widget.js" data-site-id="${site.id}" data-launcher-position="${launcherPosition}" data-launcher-horizontal-offset="${launcherHorizontalOffset}" data-launcher-bottom-offset="${launcherBottomOffset}"></script>`;
 
   return (
     <AdminShell
@@ -208,12 +212,22 @@ export default async function SettingsPage({
                         选择入口在访客页面的停靠方向和距离底部的高度；手机打开对话时仍会铺满屏幕。
                       </p>
                     </div>
-                    <div className="grid gap-5 md:grid-cols-2">
+                    <div className="grid gap-5 md:grid-cols-3">
                       <Select
                         label="入口位置"
                         name="launcherPosition"
                         defaultValue={launcherPosition}
                         options={launcherPositionOptions}
+                      />
+                      <Field
+                        label="距离侧边（px）"
+                        name="launcherHorizontalOffset"
+                        type="number"
+                        min={0}
+                        max={MAX_LAUNCHER_HORIZONTAL_OFFSET}
+                        step={1}
+                        defaultValue={String(launcherHorizontalOffset)}
+                        placeholder="20"
                       />
                       <Field
                         label="距离底部（px）"
@@ -227,12 +241,41 @@ export default async function SettingsPage({
                       />
                     </div>
                   </div>
+                  <div className="border-t border-black/[0.06] pt-5 dark:border-white/10">
+                    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-bold text-[#1f2024] dark:text-white">高级模式</h3>
+                        <p className="mt-1 text-sm font-semibold text-[#777e89] dark:text-white/55">
+                          使用受控 CSS 声明和 JS Hook 扩展特殊页面场景。
+                        </p>
+                      </div>
+                      <Checkbox label="启用高级模式" name="widgetAdvancedEnabled" defaultChecked={site.widgetAdvancedEnabled} />
+                    </div>
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <TextArea
+                        label="Advanced Custom CSS"
+                        name="widgetCustomCss"
+                        defaultValue={site.widgetCustomCss || ""}
+                        rows={7}
+                        maxLength={MAX_WIDGET_CUSTOM_CODE_LENGTH}
+                        placeholder={":root {\n  --lopuo-widget-scale: 1;\n}\n.lopuo-widget-launcher {\n  border-radius: 999px;\n}"}
+                      />
+                      <TextArea
+                        label="Advanced Custom JS"
+                        name="widgetCustomJs"
+                        defaultValue={site.widgetCustomJs || ""}
+                        rows={7}
+                        maxLength={MAX_WIDGET_CUSTOM_CODE_LENGTH}
+                        placeholder={"onReady: data=lopuo-ready\nonOpen: track=widget_open\nonClose: class=widget-closed"}
+                      />
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-3">
-                    <PreviewLink href={`/demo?style=pill&text=获取方案&position=${launcherPosition}&bottomOffset=${launcherBottomOffset}`}>胶囊入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=vertical&position=${launcherPosition}&bottomOffset=${launcherBottomOffset}`}>竖向入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=mascot&position=${launcherPosition}&bottomOffset=${launcherBottomOffset}`}>吉祥物入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-left&bottomOffset=${launcherBottomOffset}`}>左下位置预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-right&bottomOffset=${launcherBottomOffset}`}>右下位置预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=pill&text=获取方案&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>胶囊入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=vertical&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>竖向入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=mascot&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>吉祥物入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-left&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>左下位置预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-right&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>右下位置预览</PreviewLink>
                   </div>
                 </SettingsSection>
                 <SaveBar />
@@ -295,10 +338,9 @@ export default async function SettingsPage({
           </div>
 
           <PreviewAside
-            siteId={site.id}
-            siteDomain={site.domain}
             launcherStyle={site.launcherStyle || "vertical"}
             launcherPosition={launcherPosition}
+            launcherHorizontalOffset={launcherHorizontalOffset}
             launcherBottomOffset={launcherBottomOffset}
           />
         </div>
@@ -334,20 +376,19 @@ function TabNav({ activeTab, activeTenantId }: { activeTab: SettingsTab; activeT
 }
 
 function PreviewAside({
-  siteId,
-  siteDomain,
   launcherStyle,
   launcherPosition,
+  launcherHorizontalOffset,
   launcherBottomOffset,
 }: {
-  siteId: string;
-  siteDomain: string;
   launcherStyle: string;
   launcherPosition: string;
+  launcherHorizontalOffset: number;
   launcherBottomOffset: number;
 }) {
   const currentStyle = ["pill", "vertical", "mascot"].includes(launcherStyle) ? launcherStyle : "vertical";
   const currentPosition = normalizeLauncherPosition(launcherPosition);
+  const currentHorizontalOffset = normalizeLauncherHorizontalOffset(launcherHorizontalOffset);
   const currentBottomOffset = normalizeLauncherBottomOffset(launcherBottomOffset);
 
   return (
@@ -360,14 +401,8 @@ function PreviewAside({
             <div className="mt-0.5 text-xs font-semibold text-[#777e89]">新窗口查看当前样式</div>
           </div>
         </div>
-        <div className="mt-4 rounded-[18px] bg-[#f6f6f7] p-3 text-xs font-semibold leading-5 text-[#5d646f] dark:bg-white/8 dark:text-white/60">
-          <div>站点域名：{siteDomain}</div>
-          <div className="mt-1 break-all">
-            站点 ID：<span className="font-mono">{siteId}</span>
-          </div>
-        </div>
         <a
-          href={`/demo?style=${currentStyle}&position=${currentPosition}&bottomOffset=${currentBottomOffset}`}
+          href={`/demo?style=${currentStyle}&position=${currentPosition}&horizontalOffset=${currentHorizontalOffset}&bottomOffset=${currentBottomOffset}`}
           target="_blank"
           rel="noreferrer"
           className="mt-4 inline-flex w-full items-center justify-center rounded-[16px] bg-[#2f7df6] px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(47,125,246,0.2)] transition hover:-translate-y-0.5 hover:bg-[#1d6ef0]"
@@ -375,13 +410,13 @@ function PreviewAside({
           打开当前预览
         </a>
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <MiniPreviewLink href={`/demo?style=pill&text=获取方案&position=${currentPosition}&bottomOffset=${currentBottomOffset}`}>胶囊</MiniPreviewLink>
-          <MiniPreviewLink href={`/demo?style=vertical&position=${currentPosition}&bottomOffset=${currentBottomOffset}`}>竖向</MiniPreviewLink>
-          <MiniPreviewLink href={`/demo?style=mascot&position=${currentPosition}&bottomOffset=${currentBottomOffset}`}>头像</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=pill&text=获取方案&position=${currentPosition}&horizontalOffset=${currentHorizontalOffset}&bottomOffset=${currentBottomOffset}`}>胶囊</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=vertical&position=${currentPosition}&horizontalOffset=${currentHorizontalOffset}&bottomOffset=${currentBottomOffset}`}>竖向</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=mascot&position=${currentPosition}&horizontalOffset=${currentHorizontalOffset}&bottomOffset=${currentBottomOffset}`}>头像</MiniPreviewLink>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-right&bottomOffset=${currentBottomOffset}`}>右下</MiniPreviewLink>
-          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-left&bottomOffset=${currentBottomOffset}`}>左下</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-right&horizontalOffset=${currentHorizontalOffset}&bottomOffset=${currentBottomOffset}`}>右下</MiniPreviewLink>
+          <MiniPreviewLink href={`/demo?style=${currentStyle}&position=bottom-left&horizontalOffset=${currentHorizontalOffset}&bottomOffset=${currentBottomOffset}`}>左下</MiniPreviewLink>
         </div>
       </div>
     </aside>
@@ -548,11 +583,15 @@ function TextArea({
   name,
   defaultValue,
   rows,
+  maxLength,
+  placeholder,
 }: {
   label: string;
   name: string;
   defaultValue: string;
   rows: number;
+  maxLength?: number;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -561,6 +600,8 @@ function TextArea({
         name={name}
         defaultValue={defaultValue}
         rows={rows}
+        maxLength={maxLength}
+        placeholder={placeholder}
         className="mt-2 w-full rounded-[18px] border border-black/[0.06] bg-[#f5f5f6] px-4 py-3 text-sm font-semibold leading-6 text-[#1f2024] outline-none transition focus:border-[#2f7df6]/40 focus:bg-white focus:shadow-[0_12px_28px_rgba(47,125,246,0.12)] dark:border-white/10 dark:bg-white/8 dark:text-white dark:focus:border-[#2f7df6]/60 dark:focus:bg-white/12"
       />
     </label>

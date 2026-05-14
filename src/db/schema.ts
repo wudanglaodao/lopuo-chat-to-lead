@@ -72,9 +72,13 @@ export const sites = pgTable(
     launcherStyle: text("launcher_style").notNull().default("vertical"),
     launcherPosition: text("launcher_position").notNull().default("bottom-right"),
     launcherBottomOffset: integer("launcher_bottom_offset").notNull().default(20),
+    launcherHorizontalOffset: integer("launcher_horizontal_offset").notNull().default(20),
     launcherImageUrl: text("launcher_image_url"),
     launcherBadgeText: text("launcher_badge_text"),
     launcherAnimation: text("launcher_animation").notNull().default("pulse"),
+    widgetAdvancedEnabled: boolean("widget_advanced_enabled").notNull().default(false),
+    widgetCustomCss: text("widget_custom_css"),
+    widgetCustomJs: text("widget_custom_js"),
     suggestedQuestions: jsonb("suggested_questions")
       .$type<string[]>()
       .notNull()

@@ -1,6 +1,23 @@
 export const LAUNCHER_POSITIONS = ["bottom-right", "bottom-left"] as const;
 export const DEFAULT_LAUNCHER_BOTTOM_OFFSET = 20;
+export const DEFAULT_LAUNCHER_HORIZONTAL_OFFSET = 20;
 export const MAX_LAUNCHER_BOTTOM_OFFSET = 240;
+export const MAX_LAUNCHER_HORIZONTAL_OFFSET = 240;
+export const MAX_WIDGET_CUSTOM_CODE_LENGTH = 4000;
+
+const ALLOWED_CUSTOM_CSS_SELECTORS = [
+  ":root",
+  ".lopuo-widget",
+  ".lopuo-widget-launcher",
+  ".lopuo-widget-panel",
+  ".lopuo-widget-header",
+  ".lopuo-widget-body",
+  ".lopuo-widget-footer",
+  ".lopuo-widget-close",
+] as const;
+
+const ALLOWED_CUSTOM_JS_HOOKS = ["onReady", "onOpen", "onClose", "onResize"] as const;
+const ALLOWED_CUSTOM_JS_ACTIONS = ["track", "class", "data", "cssVar"] as const;
 
 export type LauncherPosition = (typeof LAUNCHER_POSITIONS)[number];
 
@@ -13,11 +30,174 @@ export function normalizeLauncherPosition(value?: string | null): LauncherPositi
 }
 
 export function normalizeLauncherBottomOffset(value?: number | string | null): number {
+  return normalizeLauncherOffset(value, DEFAULT_LAUNCHER_BOTTOM_OFFSET, MAX_LAUNCHER_BOTTOM_OFFSET);
+}
+
+export function normalizeLauncherHorizontalOffset(value?: number | string | null): number {
+  return normalizeLauncherOffset(value, DEFAULT_LAUNCHER_HORIZONTAL_OFFSET, MAX_LAUNCHER_HORIZONTAL_OFFSET);
+}
+
+export function normalizeWidgetCustomCss(value?: string | null): string {
+  const input = truncateCustomCode(value);
+  if (!input) return "";
+  if (hasBlockedCssToken(input)) return "";
+
+  const blocks = parseCustomCssBlocks(input);
+  if (blocks.length > 0) {
+    return blocks
+      .map((block) => {
+        const declarations = sanitizeCssDeclarations(block.body);
+        return declarations ? `${block.selector} {\n${declarations}\n}` : "";
+      })
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  const declarations = sanitizeCssDeclarations(input);
+  return declarations ? `.lopuo-widget {\n${declarations}\n}` : "";
+}
+
+export function normalizeWidgetCustomJs(value?: string | null): string {
+  const input = truncateCustomCode(value);
+  if (!input) return "";
+  if (hasBlockedJsToken(input)) return "";
+
+  const lines = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !line.startsWith("#") && !line.startsWith("//"));
+
+  const normalizedLines = lines
+    .map(normalizeCustomJsLine)
+    .filter((line): line is string => Boolean(line));
+
+  return normalizedLines.join("\n");
+}
+
+function normalizeLauncherOffset(value: number | string | null | undefined, fallback: number, max: number) {
   const parsed = typeof value === "number" ? value : Number.parseInt(String(value || ""), 10);
 
   if (!Number.isFinite(parsed)) {
-    return DEFAULT_LAUNCHER_BOTTOM_OFFSET;
+    return fallback;
   }
 
-  return Math.min(MAX_LAUNCHER_BOTTOM_OFFSET, Math.max(0, Math.round(parsed)));
+  return Math.min(max, Math.max(0, Math.round(parsed)));
+}
+
+function truncateCustomCode(value?: string | null) {
+  return String(value || "")
+    .replace(/\r\n/g, "\n")
+    .trim()
+    .slice(0, MAX_WIDGET_CUSTOM_CODE_LENGTH);
+}
+
+function hasBlockedCssToken(value: string) {
+  return /<\s*\/?\s*style\b/i.test(value) ||
+    /@import\b/i.test(value) ||
+    /expression\s*\(/i.test(value) ||
+    /javascript\s*:/i.test(value);
+}
+
+function parseCustomCssBlocks(value: string) {
+  const blockPattern = /([^{}]+)\{([^{}]*)\}/g;
+  const blocks: Array<{ selector: string; body: string }> = [];
+
+  for (const match of value.matchAll(blockPattern)) {
+    const selector = normalizeCustomCssSelector(match[1] || "");
+    if (selector) {
+      blocks.push({ selector, body: match[2] || "" });
+    }
+  }
+
+  return blocks;
+}
+
+function normalizeCustomCssSelector(value: string) {
+  const selector = value.trim().replace(/\s+/g, " ");
+  return ALLOWED_CUSTOM_CSS_SELECTORS.includes(selector as (typeof ALLOWED_CUSTOM_CSS_SELECTORS)[number])
+    ? selector
+    : "";
+}
+
+function sanitizeCssDeclarations(value: string) {
+  return value
+    .split(";")
+    .map((declaration) => declaration.trim())
+    .map(normalizeCssDeclaration)
+    .filter((declaration): declaration is string => Boolean(declaration))
+    .join("\n");
+}
+
+function normalizeCssDeclaration(declaration: string) {
+  const separator = declaration.indexOf(":");
+  if (separator <= 0) return "";
+
+  const property = declaration.slice(0, separator).trim().toLowerCase();
+  const value = declaration.slice(separator + 1).trim();
+  if (!isAllowedCssProperty(property) || !isAllowedCssValue(value)) {
+    return "";
+  }
+
+  return `  ${property}: ${value};`;
+}
+
+function isAllowedCssProperty(property: string) {
+  return (
+    /^--lopuo-[a-z0-9-]{1,48}$/.test(property) ||
+    [
+      "background",
+      "background-color",
+      "border",
+      "border-color",
+      "border-radius",
+      "box-shadow",
+      "color",
+      "font-size",
+      "font-weight",
+      "height",
+      "max-height",
+      "max-width",
+      "opacity",
+      "outline",
+      "padding",
+      "transform",
+      "width",
+    ].includes(property)
+  );
+}
+
+function isAllowedCssValue(value: string) {
+  if (!value || value.length > 240) return false;
+  if (/[{}<>]/.test(value)) return false;
+  if (/url\s*\(/i.test(value) || /@import\b/i.test(value) || /javascript\s*:/i.test(value)) return false;
+  return /^[#%(),.\-\w\s]+$/.test(value);
+}
+
+function hasBlockedJsToken(value: string) {
+  return /<\s*\/?\s*script\b/i.test(value);
+}
+
+function normalizeCustomJsLine(line: string) {
+  const match = line.match(/^(onReady|onOpen|onClose|onResize)\s*:\s*(track|class|data|cssVar)\s*=\s*([A-Za-z0-9_.:-]{1,80})$/);
+  if (!match) return "";
+
+  const hook = match[1] as (typeof ALLOWED_CUSTOM_JS_HOOKS)[number];
+  const action = match[2] as (typeof ALLOWED_CUSTOM_JS_ACTIONS)[number];
+  const value = match[3];
+
+  if (!ALLOWED_CUSTOM_JS_HOOKS.includes(hook) || !ALLOWED_CUSTOM_JS_ACTIONS.includes(action)) {
+    return "";
+  }
+
+  if (hasUnsafeCustomJsValue(value)) {
+    return "";
+  }
+
+  return `${hook}: ${action}=${value}`;
+}
+
+function hasUnsafeCustomJsValue(value: string) {
+  return /\b(?:eval|Function|fetch|XMLHttpRequest|WebSocket|import|document|window|localStorage|sessionStorage)\b/i.test(value) ||
+    /(?:https?:\/\/|\/\/|javascript:)/i.test(value);
 }
