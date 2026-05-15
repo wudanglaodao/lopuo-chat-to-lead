@@ -11,8 +11,10 @@ import { SUPPORTED_WIDGET_LOCALES } from "@/lib/widget-i18n";
 import {
   LAUNCHER_POSITIONS,
   MAX_LAUNCHER_BOTTOM_OFFSET,
+  MAX_LAUNCHER_ANCHOR_GAP,
   MAX_LAUNCHER_HORIZONTAL_OFFSET,
   MAX_WIDGET_CUSTOM_CODE_LENGTH,
+  normalizeLauncherAnchorSelector,
   normalizeWidgetCustomCss,
   normalizeWidgetCustomJs,
 } from "@/lib/widget-launcher";
@@ -31,6 +33,8 @@ const settingsSchema = z.object({
   launcherPosition: z.enum(LAUNCHER_POSITIONS).default("bottom-right"),
   launcherBottomOffset: z.coerce.number().int().min(0).max(MAX_LAUNCHER_BOTTOM_OFFSET).default(20),
   launcherHorizontalOffset: z.coerce.number().int().min(0).max(MAX_LAUNCHER_HORIZONTAL_OFFSET).default(20),
+  launcherAnchorSelector: z.string().max(120).optional().nullable(),
+  launcherAnchorGap: z.coerce.number().int().min(0).max(MAX_LAUNCHER_ANCHOR_GAP).default(8),
   launcherImageUrl: z.string().url().optional().nullable().or(z.literal("")),
   launcherBadgeText: z.string().max(8).optional().nullable(),
   launcherAnimation: z.enum(["none", "pulse", "bounce", "float"]),
@@ -91,6 +95,7 @@ export async function PUT(request: NextRequest) {
     widgetLogoType: normalizeWidgetLogoType(body.widgetLogoType),
     widgetLogoUrl: body.widgetLogoUrl || null,
     widgetLogoText: normalizeWidgetLogoText(body.widgetLogoText || body.widgetName),
+    launcherAnchorSelector: normalizeLauncherAnchorSelector(body.launcherAnchorSelector || "") || null,
     widgetCustomCss: body.widgetAdvancedEnabled ? normalizeWidgetCustomCss(body.widgetCustomCss || "") || null : null,
     widgetCustomJs: body.widgetAdvancedEnabled ? normalizeWidgetCustomJs(body.widgetCustomJs || "") || null : null,
   };

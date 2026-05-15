@@ -23,9 +23,12 @@ import {
   normalizeWidgetLocale,
 } from "@/lib/widget-i18n";
 import {
+  MAX_LAUNCHER_ANCHOR_GAP,
   MAX_LAUNCHER_BOTTOM_OFFSET,
   MAX_LAUNCHER_HORIZONTAL_OFFSET,
   MAX_WIDGET_CUSTOM_CODE_LENGTH,
+  normalizeLauncherAnchorGap,
+  normalizeLauncherAnchorSelector,
   normalizeLauncherBottomOffset,
   normalizeLauncherHorizontalOffset,
   normalizeLauncherPosition,
@@ -75,9 +78,17 @@ export default async function SettingsPage({
   const launcherPosition = normalizeLauncherPosition(site.launcherPosition);
   const launcherBottomOffset = normalizeLauncherBottomOffset(site.launcherBottomOffset);
   const launcherHorizontalOffset = normalizeLauncherHorizontalOffset(site.launcherHorizontalOffset);
+  const launcherAnchorSelector = normalizeLauncherAnchorSelector(site.launcherAnchorSelector);
+  const launcherAnchorGap = normalizeLauncherAnchorGap(site.launcherAnchorGap);
   const widgetLogoType = normalizeWidgetLogoType(site.widgetLogoType);
   const widgetLogoText = normalizeWidgetLogoText(site.widgetLogoText || site.widgetName || DEFAULT_WIDGET_LOGO_TEXT);
-  const embedCode = `<script src="${embedBaseUrl}/widget.js" data-site-id="${site.id}" data-launcher-position="${launcherPosition}" data-launcher-horizontal-offset="${launcherHorizontalOffset}" data-launcher-bottom-offset="${launcherBottomOffset}"></script>`;
+  const anchorAttributes = launcherAnchorSelector
+    ? ` data-launcher-anchor-selector="${launcherAnchorSelector}" data-launcher-anchor-gap="${launcherAnchorGap}"`
+    : "";
+  const embedCode = `<script src="${embedBaseUrl}/widget.js" data-site-id="${site.id}" data-launcher-position="${launcherPosition}" data-launcher-horizontal-offset="${launcherHorizontalOffset}" data-launcher-bottom-offset="${launcherBottomOffset}"${anchorAttributes}></script>`;
+  const previewAnchorQuery = launcherAnchorSelector
+    ? `&anchorSelector=${encodeURIComponent(launcherAnchorSelector)}&anchorGap=${launcherAnchorGap}`
+    : "";
 
   return (
     <AdminShell
@@ -209,7 +220,7 @@ export default async function SettingsPage({
                     <div className="mb-4">
                       <h3 className="text-base font-bold text-[#1f2024] dark:text-white">位置设置</h3>
                       <p className="mt-1 text-sm font-semibold text-[#777e89] dark:text-white/55">
-                        选择入口在访客页面的停靠方向和距离底部的高度；手机打开对话时仍会铺满屏幕。
+                        定义入口在访客页面的可见边缘位置；手机打开对话时仍会铺满屏幕，关闭态会自动收拢侧边距。
                       </p>
                     </div>
                     <div className="grid gap-5 md:grid-cols-3">
@@ -240,6 +251,27 @@ export default async function SettingsPage({
                         placeholder="20"
                       />
                     </div>
+                    <div className="mt-5 grid gap-5 md:grid-cols-[1fr_180px]">
+                      <Field
+                        label="对齐已有悬浮按钮（可选）"
+                        name="launcherAnchorSelector"
+                        defaultValue={launcherAnchorSelector}
+                        placeholder=".lopuo-scroll-top"
+                      />
+                      <Field
+                        label="叠放间距（px）"
+                        name="launcherAnchorGap"
+                        type="number"
+                        min={0}
+                        max={MAX_LAUNCHER_ANCHOR_GAP}
+                        step={1}
+                        defaultValue={String(launcherAnchorGap)}
+                        placeholder="8"
+                      />
+                    </div>
+                    <p className="mt-3 text-xs font-semibold leading-5 text-[#777e89] dark:text-white/45">
+                      例如 lopuo.com 可填 <code className="rounded bg-[#f5f5f6] px-1.5 py-0.5 dark:bg-white/10">.lopuo-scroll-top</code>，入口会跟随返回顶部按钮的右侧边距并叠在它上方；找不到该元素时使用上方基础位置。
+                    </p>
                   </div>
                   <div className="border-t border-black/[0.06] pt-5 dark:border-white/10">
                     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -271,11 +303,11 @@ export default async function SettingsPage({
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    <PreviewLink href={`/demo?style=pill&text=获取方案&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>胶囊入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=vertical&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>竖向入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=mascot&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>吉祥物入口预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-left&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>左下位置预览</PreviewLink>
-                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-right&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}`}>右下位置预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=pill&text=获取方案&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}${previewAnchorQuery}`}>胶囊入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=vertical&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}${previewAnchorQuery}`}>竖向入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=mascot&position=${launcherPosition}&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}${previewAnchorQuery}`}>吉祥物入口预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-left&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}${previewAnchorQuery}`}>左下位置预览</PreviewLink>
+                    <PreviewLink href={`/demo?style=${site.launcherStyle || "vertical"}&position=bottom-right&horizontalOffset=${launcherHorizontalOffset}&bottomOffset=${launcherBottomOffset}${previewAnchorQuery}`}>右下位置预览</PreviewLink>
                   </div>
                 </SettingsSection>
                 <SaveBar />
@@ -342,6 +374,8 @@ export default async function SettingsPage({
             launcherPosition={launcherPosition}
             launcherHorizontalOffset={launcherHorizontalOffset}
             launcherBottomOffset={launcherBottomOffset}
+            launcherAnchorSelector={launcherAnchorSelector}
+            launcherAnchorGap={launcherAnchorGap}
           />
         </div>
       </div>
@@ -380,16 +414,25 @@ function PreviewAside({
   launcherPosition,
   launcherHorizontalOffset,
   launcherBottomOffset,
+  launcherAnchorSelector,
+  launcherAnchorGap,
 }: {
   launcherStyle: string;
   launcherPosition: string;
   launcherHorizontalOffset: number;
   launcherBottomOffset: number;
+  launcherAnchorSelector: string;
+  launcherAnchorGap: number;
 }) {
   const currentStyle = ["pill", "vertical", "mascot"].includes(launcherStyle) ? launcherStyle : "vertical";
   const currentPosition = normalizeLauncherPosition(launcherPosition);
   const currentHorizontalOffset = normalizeLauncherHorizontalOffset(launcherHorizontalOffset);
   const currentBottomOffset = normalizeLauncherBottomOffset(launcherBottomOffset);
+  const currentAnchorSelector = normalizeLauncherAnchorSelector(launcherAnchorSelector);
+  const currentAnchorGap = normalizeLauncherAnchorGap(launcherAnchorGap);
+  const anchorQuery = currentAnchorSelector
+    ? `&anchorSelector=${encodeURIComponent(currentAnchorSelector)}&anchorGap=${currentAnchorGap}`
+    : "";
 
   return (
     <aside className="xl:sticky xl:top-28 xl:self-start">
@@ -402,7 +445,7 @@ function PreviewAside({
           </div>
         </div>
         <a
-          href={`/demo?style=${currentStyle}&position=${currentPosition}&horizontalOffset=${currentHorizontalOffset}&bottomOffset=${currentBottomOffset}`}
+          href={`/demo?style=${currentStyle}&position=${currentPosition}&horizontalOffset=${currentHorizontalOffset}&bottomOffset=${currentBottomOffset}${anchorQuery}`}
           target="_blank"
           rel="noreferrer"
           className="mt-4 inline-flex w-full items-center justify-center rounded-[16px] bg-[#2f7df6] px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(47,125,246,0.2)] transition hover:-translate-y-0.5 hover:bg-[#1d6ef0]"

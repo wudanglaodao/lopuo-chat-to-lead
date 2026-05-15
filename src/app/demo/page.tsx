@@ -13,6 +13,8 @@ export default async function DemoPage({
     position?: string;
     horizontalOffset?: string;
     bottomOffset?: string;
+    anchorSelector?: string;
+    anchorGap?: string;
     tenantId?: string;
     locale?: string;
   }>;
@@ -61,9 +63,13 @@ export default async function DemoPage({
         data-preview-position={params.position || ""}
         data-preview-horizontal-offset={params.horizontalOffset || ""}
         data-preview-bottom-offset={params.bottomOffset || ""}
+        data-preview-anchor-selector={params.anchorSelector || ""}
+        data-preview-anchor-gap={params.anchorGap || ""}
         data-launcher-position={params.position || ""}
         data-launcher-horizontal-offset={params.horizontalOffset || ""}
         data-launcher-bottom-offset={params.bottomOffset || ""}
+        data-launcher-anchor-selector={params.anchorSelector || ""}
+        data-launcher-anchor-gap={params.anchorGap || ""}
         strategy="afterInteractive"
       />
     </main>

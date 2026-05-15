@@ -1,9 +1,15 @@
 export const LAUNCHER_POSITIONS = ["bottom-right", "bottom-left"] as const;
+export const LAUNCHER_STYLES = ["pill", "vertical", "mascot"] as const;
 export const DEFAULT_LAUNCHER_BOTTOM_OFFSET = 20;
-export const DEFAULT_LAUNCHER_HORIZONTAL_OFFSET = 20;
+export const DEFAULT_LAUNCHER_HORIZONTAL_OFFSET = 34;
+export const DEFAULT_LAUNCHER_ANCHOR_GAP = 8;
 export const MAX_LAUNCHER_BOTTOM_OFFSET = 240;
 export const MAX_LAUNCHER_HORIZONTAL_OFFSET = 240;
+export const MAX_LAUNCHER_ANCHOR_GAP = 80;
 export const MAX_WIDGET_CUSTOM_CODE_LENGTH = 4000;
+export const MIN_RESPONSIVE_LAUNCHER_OFFSET = 18;
+export const RESPONSIVE_LAUNCHER_OFFSET_RATIO = 0.024;
+export const WIDGET_LAUNCHER_FRAME_GUTTER = 14;
 
 const ALLOWED_CUSTOM_CSS_SELECTORS = [
   ":root",
@@ -20,6 +26,13 @@ const ALLOWED_CUSTOM_JS_HOOKS = ["onReady", "onOpen", "onClose", "onResize"] as 
 const ALLOWED_CUSTOM_JS_ACTIONS = ["track", "class", "data", "cssVar"] as const;
 
 export type LauncherPosition = (typeof LAUNCHER_POSITIONS)[number];
+export type LauncherStyle = (typeof LAUNCHER_STYLES)[number];
+
+export const LAUNCHER_VISUAL_SIZES: Record<LauncherStyle, { width: number; height: number }> = {
+  pill: { width: 244, height: 64 },
+  vertical: { width: 64, height: 154 },
+  mascot: { width: 52, height: 52 },
+};
 
 export function isLauncherPosition(value?: string | null): value is LauncherPosition {
   return LAUNCHER_POSITIONS.includes(value as LauncherPosition);
@@ -35,6 +48,66 @@ export function normalizeLauncherBottomOffset(value?: number | string | null): n
 
 export function normalizeLauncherHorizontalOffset(value?: number | string | null): number {
   return normalizeLauncherOffset(value, DEFAULT_LAUNCHER_HORIZONTAL_OFFSET, MAX_LAUNCHER_HORIZONTAL_OFFSET);
+}
+
+export function normalizeLauncherAnchorGap(value?: number | string | null): number {
+  return normalizeLauncherOffset(value, DEFAULT_LAUNCHER_ANCHOR_GAP, MAX_LAUNCHER_ANCHOR_GAP);
+}
+
+export function normalizeLauncherAnchorSelector(value?: string | null): string {
+  const selector = String(value || "").trim().slice(0, 120);
+  if (!selector) return "";
+  if (!/^(?:[.#][A-Za-z0-9_-]{1,80}|\[data-[A-Za-z0-9_-]{1,64}(?:=[A-Za-z0-9_-]{1,64})?\])$/.test(selector)) {
+    return "";
+  }
+  return selector;
+}
+
+export function normalizeLauncherStyle(value?: string | null): LauncherStyle {
+  return LAUNCHER_STYLES.includes(value as LauncherStyle) ? (value as LauncherStyle) : "vertical";
+}
+
+export function resolveResponsiveLauncherOffset(value?: number | string | null, viewportWidth = 0): number {
+  const offset = normalizeLauncherHorizontalOffset(value);
+  if (offset <= 0 || offset <= MIN_RESPONSIVE_LAUNCHER_OFFSET || viewportWidth <= 0) {
+    return offset;
+  }
+
+  const viewportOffset = Math.round(viewportWidth * RESPONSIVE_LAUNCHER_OFFSET_RATIO);
+  return Math.min(offset, Math.max(MIN_RESPONSIVE_LAUNCHER_OFFSET, viewportOffset));
+}
+
+export function getLauncherFrameMetrics({
+  launcherStyle,
+  launcherPosition,
+  launcherHorizontalOffset,
+  launcherBottomOffset,
+}: {
+  launcherStyle?: string | null;
+  launcherPosition?: string | null;
+  launcherHorizontalOffset?: number | string | null;
+  launcherBottomOffset?: number | string | null;
+}) {
+  const style = normalizeLauncherStyle(launcherStyle);
+  const position = normalizeLauncherPosition(launcherPosition);
+  const horizontalOffset = normalizeLauncherHorizontalOffset(launcherHorizontalOffset);
+  const bottomOffset = normalizeLauncherBottomOffset(launcherBottomOffset);
+  const frameHorizontalGutter = Math.min(WIDGET_LAUNCHER_FRAME_GUTTER, horizontalOffset);
+  const frameBottomGutter = Math.min(WIDGET_LAUNCHER_FRAME_GUTTER, bottomOffset);
+  const visualSize = LAUNCHER_VISUAL_SIZES[style];
+
+  return {
+    style,
+    position,
+    visualWidth: visualSize.width,
+    visualHeight: visualSize.height,
+    frameHorizontalGutter,
+    frameBottomGutter,
+    frameWidth: visualSize.width + frameHorizontalGutter * 2,
+    frameHeight: visualSize.height + frameBottomGutter * 2,
+    frameHorizontalOffset: Math.max(0, horizontalOffset - frameHorizontalGutter),
+    frameBottomOffset: Math.max(0, bottomOffset - frameBottomGutter),
+  };
 }
 
 export function normalizeWidgetCustomCss(value?: string | null): string {

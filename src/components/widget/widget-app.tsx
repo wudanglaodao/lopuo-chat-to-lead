@@ -20,6 +20,8 @@ import {
 import {
   isLauncherPosition,
   normalizeLauncherBottomOffset,
+  normalizeLauncherAnchorGap,
+  normalizeLauncherAnchorSelector,
   normalizeLauncherHorizontalOffset,
   type LauncherPosition,
   normalizeLauncherPosition,
@@ -37,6 +39,8 @@ type WidgetConfig = {
   launcherPosition: LauncherPosition;
   launcherBottomOffset: number;
   launcherHorizontalOffset: number;
+  launcherAnchorSelector?: string | null;
+  launcherAnchorGap: number;
   launcherImageUrl?: string | null;
   launcherBadgeText?: string | null;
   launcherAnimation: "none" | "pulse" | "bounce" | "float";
@@ -83,6 +87,8 @@ export function WidgetApp({
   previewPosition,
   previewHorizontalOffset,
   previewBottomOffset,
+  previewAnchorSelector,
+  previewAnchorGap,
 }: {
   siteId: string;
   tenantId?: string;
@@ -92,6 +98,8 @@ export function WidgetApp({
   previewPosition?: string;
   previewHorizontalOffset?: string;
   previewBottomOffset?: string;
+  previewAnchorSelector?: string;
+  previewAnchorGap?: string;
 }) {
   const [config, setConfig] = useState<WidgetConfig | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -112,10 +120,14 @@ export function WidgetApp({
   const previewLauncherBottomOffset = hasExplicitValue(previewBottomOffset)
     ? normalizeLauncherBottomOffset(previewBottomOffset)
     : null;
+  const previewLauncherAnchorSelector = normalizeLauncherAnchorSelector(previewAnchorSelector);
+  const previewLauncherAnchorGap = hasExplicitValue(previewAnchorGap) ? normalizeLauncherAnchorGap(previewAnchorGap) : null;
   const launcherStyle = previewLauncherStyle || config?.launcherStyle;
   const launcherPosition = previewLauncherPosition || normalizeLauncherPosition(config?.launcherPosition);
   const launcherHorizontalOffset = previewLauncherHorizontalOffset ?? normalizeLauncherHorizontalOffset(config?.launcherHorizontalOffset);
   const launcherBottomOffset = previewLauncherBottomOffset ?? normalizeLauncherBottomOffset(config?.launcherBottomOffset);
+  const launcherAnchorSelector = previewLauncherAnchorSelector || normalizeLauncherAnchorSelector(config?.launcherAnchorSelector);
+  const launcherAnchorGap = previewLauncherAnchorGap ?? normalizeLauncherAnchorGap(config?.launcherAnchorGap);
 
   const visitorId = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -171,11 +183,13 @@ export function WidgetApp({
         launcherPosition,
         launcherHorizontalOffset,
         launcherBottomOffset,
+        launcherAnchorSelector,
+        launcherAnchorGap,
       },
       "*",
     );
     runWidgetCustomJsHook(config, "onResize");
-  }, [config, isOpen, launcherBottomOffset, launcherHorizontalOffset, launcherPosition, launcherStyle]);
+  }, [config, isOpen, launcherAnchorGap, launcherAnchorSelector, launcherBottomOffset, launcherHorizontalOffset, launcherPosition, launcherStyle]);
 
   useEffect(() => {
     if (!config?.widgetAdvancedEnabled || didRunReadyHook.current) {
@@ -209,6 +223,8 @@ export function WidgetApp({
       previewPosition: previewPosition || "",
       previewHorizontalOffset: previewHorizontalOffset || "",
       previewBottomOffset: previewBottomOffset || "",
+      previewAnchorSelector: previewAnchorSelector || "",
+      previewAnchorGap: previewAnchorGap || "",
     });
 
     fetch(`/api/widget/config?${params.toString()}`)
@@ -227,6 +243,8 @@ export function WidgetApp({
     previewPosition,
     previewHorizontalOffset,
     previewBottomOffset,
+    previewAnchorSelector,
+    previewAnchorGap,
     uiText.configLoadFailed,
   ]);
 

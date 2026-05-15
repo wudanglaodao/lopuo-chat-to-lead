@@ -6,6 +6,8 @@ import { getDemoWidgetConfig, isDemoMode } from "@/lib/demo-mode";
 import { isAllowedOrigin } from "@/lib/utils";
 import {
   normalizeLauncherBottomOffset,
+  normalizeLauncherAnchorGap,
+  normalizeLauncherAnchorSelector,
   normalizeLauncherHorizontalOffset,
   normalizeLauncherPosition,
   normalizeWidgetCustomCss,
@@ -29,6 +31,8 @@ export async function GET(request: NextRequest) {
         previewPosition: request.nextUrl.searchParams.get("previewPosition"),
         previewBottomOffset: request.nextUrl.searchParams.get("previewBottomOffset"),
         previewHorizontalOffset: request.nextUrl.searchParams.get("previewHorizontalOffset"),
+        previewAnchorSelector: request.nextUrl.searchParams.get("previewAnchorSelector"),
+        previewAnchorGap: request.nextUrl.searchParams.get("previewAnchorGap"),
       }),
     );
   }
@@ -73,6 +77,8 @@ export async function GET(request: NextRequest) {
     launcherPosition: normalizeLauncherPosition(site.launcherPosition),
     launcherBottomOffset: normalizeLauncherBottomOffset(site.launcherBottomOffset),
     launcherHorizontalOffset: normalizeLauncherHorizontalOffset(site.launcherHorizontalOffset),
+    launcherAnchorSelector: normalizeLauncherAnchorSelector(site.launcherAnchorSelector),
+    launcherAnchorGap: normalizeLauncherAnchorGap(site.launcherAnchorGap),
     launcherImageUrl: site.launcherImageUrl,
     launcherBadgeText: site.launcherBadgeText,
     launcherAnimation: site.launcherAnimation,

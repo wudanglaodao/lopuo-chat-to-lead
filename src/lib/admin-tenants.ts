@@ -108,6 +108,8 @@ function getDemoAdminSite(siteId: string, customerId: string): Site {
     launcherPosition: demoConfig.launcherPosition,
     launcherBottomOffset: demoConfig.launcherBottomOffset,
     launcherHorizontalOffset: demoConfig.launcherHorizontalOffset,
+    launcherAnchorSelector: demoConfig.launcherAnchorSelector,
+    launcherAnchorGap: demoConfig.launcherAnchorGap,
     launcherImageUrl: demoConfig.launcherImageUrl,
     launcherBadgeText: demoConfig.launcherBadgeText,
     launcherAnimation: demoConfig.launcherAnimation,

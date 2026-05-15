@@ -23,9 +23,22 @@ export function GET(request: NextRequest) {
   var previewPosition = currentScript && currentScript.dataset ? currentScript.dataset.previewPosition : "";
   var previewHorizontalOffset = currentScript && currentScript.dataset ? currentScript.dataset.previewHorizontalOffset : "";
   var previewBottomOffset = currentScript && currentScript.dataset ? currentScript.dataset.previewBottomOffset : "";
+  var previewAnchorSelector = currentScript && currentScript.dataset ? currentScript.dataset.previewAnchorSelector : "";
+  var previewAnchorGap = currentScript && currentScript.dataset ? currentScript.dataset.previewAnchorGap : "";
   var launcherPosition = currentScript && currentScript.dataset ? currentScript.dataset.launcherPosition : "";
   var launcherHorizontalOffset = currentScript && currentScript.dataset ? currentScript.dataset.launcherHorizontalOffset : "";
   var launcherBottomOffset = currentScript && currentScript.dataset ? currentScript.dataset.launcherBottomOffset : "";
+  var launcherAnchorSelector = currentScript && currentScript.dataset ? currentScript.dataset.launcherAnchorSelector : "";
+  var launcherAnchorGap = currentScript && currentScript.dataset ? currentScript.dataset.launcherAnchorGap : "";
+  var lastFrameState = {
+    isOpen: false,
+    launcherStyle: previewStyle,
+    launcherPosition: previewPosition || launcherPosition,
+    launcherHorizontalOffset: previewHorizontalOffset || launcherHorizontalOffset,
+    launcherBottomOffset: previewBottomOffset || launcherBottomOffset,
+    launcherAnchorSelector: previewAnchorSelector || launcherAnchorSelector,
+    launcherAnchorGap: previewAnchorGap || launcherAnchorGap
+  };
   function normalizeLauncherStyle(style) {
     return style === "pill" || style === "vertical" || style === "mascot" ? style : "";
   }
@@ -39,6 +52,79 @@ export function GET(request: NextRequest) {
     }
     return Math.min(240, Math.max(0, Math.round(parsed)));
   }
+  function normalizeAnchorSelector(selector) {
+    selector = String(selector || "").trim().slice(0, 120);
+    if (!selector) return "";
+    return /^(?:[.#][A-Za-z0-9_-]{1,80}|\\[data-[A-Za-z0-9_-]{1,64}(?:=[A-Za-z0-9_-]{1,64})?\\])$/.test(selector) ? selector : "";
+  }
+  function normalizeAnchorGap(gap) {
+    var parsed = parseInt(gap, 10);
+    if (!Number.isFinite(parsed)) {
+      return 8;
+    }
+    return Math.min(80, Math.max(0, Math.round(parsed)));
+  }
+  function resolveResponsiveOffset(offset) {
+    var normalized = normalizeOffset(offset);
+    if (normalized <= 18) {
+      return normalized;
+    }
+    return Math.min(normalized, Math.max(18, Math.round(window.innerWidth * 0.024)));
+  }
+  function getLauncherVisualSize(style) {
+    if (style === "pill") return { width: 244, height: 64 };
+    if (style === "mascot") return { width: 52, height: 52 };
+    return { width: 64, height: 154 };
+  }
+  function getFrameMetrics(style, horizontalOffset, bottomOffset) {
+    var visualSize = getLauncherVisualSize(style);
+    var horizontalGutter = Math.min(14, horizontalOffset);
+    var bottomGutter = Math.min(14, bottomOffset);
+    return {
+      visualWidth: visualSize.width,
+      visualHeight: visualSize.height,
+      horizontalGutter: horizontalGutter,
+      bottomGutter: bottomGutter,
+      frameWidth: visualSize.width + horizontalGutter * 2,
+      frameHeight: visualSize.height + bottomGutter * 2,
+      frameHorizontalOffset: Math.max(0, horizontalOffset - horizontalGutter),
+      frameBottomOffset: Math.max(0, bottomOffset - bottomGutter)
+    };
+  }
+  function resolveAnchorPosition(position, selector, gap, metrics) {
+    selector = normalizeAnchorSelector(selector);
+    if (!selector || window.innerWidth < 640) {
+      return null;
+    }
+
+    var anchor;
+    try {
+      anchor = document.querySelector(selector);
+    } catch (error) {
+      return null;
+    }
+    if (!anchor) {
+      return null;
+    }
+    var style = window.getComputedStyle(anchor);
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) <= 0.05) {
+      return null;
+    }
+
+    var rect = anchor.getBoundingClientRect();
+    if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth) {
+      return null;
+    }
+
+    var sideOffset = position === "bottom-left" ? rect.left : window.innerWidth - rect.right;
+    var bottomOffset = Math.max(0, window.innerHeight - rect.top + normalizeAnchorGap(gap));
+    return {
+      horizontalOffset: Math.round(sideOffset),
+      bottomOffset: Math.round(bottomOffset),
+      frameHorizontalOffset: Math.max(0, Math.round(sideOffset) - metrics.horizontalGutter),
+      frameBottomOffset: Math.max(0, Math.round(bottomOffset) - metrics.bottomGutter)
+    };
+  }
   function applyHorizontalPosition(position, offset) {
     if (position === "bottom-left") {
       iframe.style.left = offset;
@@ -48,14 +134,44 @@ export function GET(request: NextRequest) {
       iframe.style.right = offset;
     }
   }
-  function applyFrameState(isOpen, launcherStyle, launcherPosition, horizontalOffset, bottomOffset) {
+  function applyClosedAlignment(position, metrics) {
+    if (position === "bottom-left") {
+      iframe.style.justifyItems = "start";
+      iframe.style.alignItems = "end";
+      iframe.style.paddingLeft = metrics.horizontalGutter + "px";
+      iframe.style.paddingRight = metrics.horizontalGutter + "px";
+    } else {
+      iframe.style.justifyItems = "end";
+      iframe.style.alignItems = "end";
+      iframe.style.paddingLeft = metrics.horizontalGutter + "px";
+      iframe.style.paddingRight = metrics.horizontalGutter + "px";
+    }
+    iframe.style.paddingTop = metrics.bottomGutter + "px";
+    iframe.style.paddingBottom = metrics.bottomGutter + "px";
+  }
+  function applyFrameState(isOpen, launcherStyle, launcherPosition, horizontalOffset, bottomOffset, anchorSelector, anchorGap) {
     var normalizedStyle = normalizeLauncherStyle(launcherStyle) || "vertical";
     var normalizedPosition = normalizeLauncherPosition(launcherPosition) || "bottom-right";
-    var normalizedHorizontal = normalizeOffset(horizontalOffset);
+    var normalizedHorizontal = resolveResponsiveOffset(horizontalOffset);
     var normalizedBottom = normalizeOffset(bottomOffset);
-    var horizontal = normalizedHorizontal + "px";
-    var bottom = normalizedBottom + "px";
+    var metrics = getFrameMetrics(normalizedStyle, normalizedHorizontal, normalizedBottom);
+    var anchorPosition = resolveAnchorPosition(normalizedPosition, anchorSelector, anchorGap, metrics);
+    var frameHorizontalOffset = anchorPosition ? anchorPosition.frameHorizontalOffset : metrics.frameHorizontalOffset;
+    var frameBottomOffset = anchorPosition ? anchorPosition.frameBottomOffset : metrics.frameBottomOffset;
+    var closedHorizontal = frameHorizontalOffset + "px";
+    var closedBottom = frameBottomOffset + "px";
+    var openHorizontal = (anchorPosition ? anchorPosition.horizontalOffset : normalizedHorizontal) + "px";
+    var openBottom = normalizedBottom + "px";
     var isMobile = window.innerWidth < 640;
+    lastFrameState = {
+      isOpen: isOpen,
+      launcherStyle: normalizedStyle,
+      launcherPosition: normalizedPosition,
+      launcherHorizontalOffset: horizontalOffset,
+      launcherBottomOffset: bottomOffset,
+      launcherAnchorSelector: anchorSelector,
+      launcherAnchorGap: anchorGap
+    };
     if (isOpen && isMobile) {
       iframe.style.left = "0";
       iframe.style.right = "";
@@ -63,34 +179,51 @@ export function GET(request: NextRequest) {
       iframe.style.width = "100vw";
       iframe.style.height = "100dvh";
       iframe.style.borderRadius = "0";
+      iframe.style.display = "block";
+      iframe.style.padding = "0";
     } else if (isOpen) {
-      applyHorizontalPosition(normalizedPosition, horizontal);
-      iframe.style.bottom = bottom;
+      applyHorizontalPosition(normalizedPosition, openHorizontal);
+      iframe.style.bottom = openBottom;
       iframe.style.width = "400px";
       iframe.style.height = "640px";
       iframe.style.borderRadius = "0";
+      iframe.style.display = "block";
+      iframe.style.padding = "0";
     } else {
-      applyHorizontalPosition(normalizedPosition, horizontal);
-      iframe.style.bottom = bottom;
+      applyHorizontalPosition(normalizedPosition, closedHorizontal);
+      iframe.style.bottom = closedBottom;
       iframe.style.borderRadius = "0";
       iframe.style.background = "transparent";
       iframe.style.backgroundColor = "transparent";
       iframe.style.boxShadow = "none";
-      if (normalizedStyle === "pill") {
-        iframe.style.width = "276px";
-        iframe.style.height = "92px";
-      } else if (normalizedStyle === "vertical") {
-        iframe.style.width = "96px";
-        iframe.style.height = "196px";
-      } else {
-        iframe.style.width = "76px";
-        iframe.style.height = "76px";
-      }
+      iframe.style.display = "grid";
+      iframe.style.width = metrics.frameWidth + "px";
+      iframe.style.height = metrics.frameHeight + "px";
+      applyClosedAlignment(normalizedPosition, metrics);
     }
+  }
+  function refreshFramePosition() {
+    applyFrameState(
+      lastFrameState.isOpen,
+      lastFrameState.launcherStyle,
+      lastFrameState.launcherPosition,
+      lastFrameState.launcherHorizontalOffset,
+      lastFrameState.launcherBottomOffset,
+      lastFrameState.launcherAnchorSelector,
+      lastFrameState.launcherAnchorGap
+    );
+  }
+  function scheduleFrameRefresh() {
+    if (scheduleFrameRefresh.queued) return;
+    scheduleFrameRefresh.queued = true;
+    window.requestAnimationFrame(function () {
+      scheduleFrameRefresh.queued = false;
+      refreshFramePosition();
+    });
   }
   var iframe = document.createElement("iframe");
   iframe.title = "Lopuo Signal AI 营销助手";
-  iframe.src = widgetOrigin + "/widget?siteId=" + encodeURIComponent(siteId || "") + "&tenantId=" + encodeURIComponent(tenantId || "") + "&locale=" + encodeURIComponent(locale || "") + "&previewStyle=" + encodeURIComponent(previewStyle || "") + "&previewText=" + encodeURIComponent(previewText || "") + "&previewPosition=" + encodeURIComponent(previewPosition || launcherPosition || "") + "&previewHorizontalOffset=" + encodeURIComponent(previewHorizontalOffset || launcherHorizontalOffset || "") + "&previewBottomOffset=" + encodeURIComponent(previewBottomOffset || launcherBottomOffset || "");
+  iframe.src = widgetOrigin + "/widget?siteId=" + encodeURIComponent(siteId || "") + "&tenantId=" + encodeURIComponent(tenantId || "") + "&locale=" + encodeURIComponent(locale || "") + "&previewStyle=" + encodeURIComponent(previewStyle || "") + "&previewText=" + encodeURIComponent(previewText || "") + "&previewPosition=" + encodeURIComponent(previewPosition || launcherPosition || "") + "&previewHorizontalOffset=" + encodeURIComponent(previewHorizontalOffset || launcherHorizontalOffset || "") + "&previewBottomOffset=" + encodeURIComponent(previewBottomOffset || launcherBottomOffset || "") + "&previewAnchorSelector=" + encodeURIComponent(previewAnchorSelector || launcherAnchorSelector || "") + "&previewAnchorGap=" + encodeURIComponent(previewAnchorGap || launcherAnchorGap || "");
   iframe.style.position = "fixed";
   iframe.style.right = "20px";
   iframe.style.bottom = normalizeOffset(previewBottomOffset || launcherBottomOffset) + "px";
@@ -109,9 +242,13 @@ export function GET(request: NextRequest) {
     previewStyle,
     previewPosition || launcherPosition,
     previewHorizontalOffset || launcherHorizontalOffset,
-    previewBottomOffset || launcherBottomOffset
+    previewBottomOffset || launcherBottomOffset,
+    previewAnchorSelector || launcherAnchorSelector,
+    previewAnchorGap || launcherAnchorGap
   );
   document.body.appendChild(iframe);
+  window.addEventListener("resize", scheduleFrameRefresh, { passive: true });
+  window.addEventListener("scroll", scheduleFrameRefresh, { passive: true });
 
   window.addEventListener("message", function (event) {
     if (event.origin !== widgetOrigin || !event.data || event.data.type !== "lopuo-ai-widget-resize") {
@@ -123,7 +260,9 @@ export function GET(request: NextRequest) {
       event.data.launcherStyle,
       event.data.launcherPosition,
       event.data.launcherHorizontalOffset,
-      event.data.launcherBottomOffset
+      event.data.launcherBottomOffset,
+      event.data.launcherAnchorSelector,
+      event.data.launcherAnchorGap
     );
   });
 })();

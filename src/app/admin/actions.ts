@@ -16,6 +16,8 @@ import {
 import { DEFAULT_WIDGET_LOGO_URL, normalizeWidgetLogoText, normalizeWidgetLogoType } from "@/lib/widget-brand";
 import {
   normalizeLauncherBottomOffset,
+  normalizeLauncherAnchorGap,
+  normalizeLauncherAnchorSelector,
   normalizeLauncherHorizontalOffset,
   normalizeLauncherPosition,
   normalizeWidgetCustomCss,
@@ -236,6 +238,8 @@ export async function updateSettingsAction(formData: FormData) {
     values.launcherPosition = normalizeLauncherPosition(String(formData.get("launcherPosition") || ""));
     values.launcherBottomOffset = normalizeLauncherBottomOffset(String(formData.get("launcherBottomOffset") || ""));
     values.launcherHorizontalOffset = normalizeLauncherHorizontalOffset(String(formData.get("launcherHorizontalOffset") || ""));
+    values.launcherAnchorSelector = normalizeLauncherAnchorSelector(String(formData.get("launcherAnchorSelector") || "")) || null;
+    values.launcherAnchorGap = normalizeLauncherAnchorGap(String(formData.get("launcherAnchorGap") || ""));
     values.launcherImageUrl = String(formData.get("launcherImageUrl") || "").trim() || null;
     values.launcherBadgeText = String(formData.get("launcherBadgeText") || "").trim() || null;
     values.launcherAnimation = String(formData.get("launcherAnimation") || "pulse");

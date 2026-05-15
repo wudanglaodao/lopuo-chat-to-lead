@@ -73,6 +73,8 @@ export const sites = pgTable(
     launcherPosition: text("launcher_position").notNull().default("bottom-right"),
     launcherBottomOffset: integer("launcher_bottom_offset").notNull().default(20),
     launcherHorizontalOffset: integer("launcher_horizontal_offset").notNull().default(20),
+    launcherAnchorSelector: text("launcher_anchor_selector"),
+    launcherAnchorGap: integer("launcher_anchor_gap").notNull().default(8),
     launcherImageUrl: text("launcher_image_url"),
     launcherBadgeText: text("launcher_badge_text"),
     launcherAnimation: text("launcher_animation").notNull().default("pulse"),

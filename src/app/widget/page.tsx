@@ -14,6 +14,8 @@ export default async function WidgetPage({
     previewPosition?: string;
     previewHorizontalOffset?: string;
     previewBottomOffset?: string;
+    previewAnchorSelector?: string;
+    previewAnchorGap?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -41,6 +43,8 @@ export default async function WidgetPage({
         previewPosition={params.previewPosition || ""}
         previewHorizontalOffset={params.previewHorizontalOffset || ""}
         previewBottomOffset={params.previewBottomOffset || ""}
+        previewAnchorSelector={params.previewAnchorSelector || ""}
+        previewAnchorGap={params.previewAnchorGap || ""}
       />
     </>
   );

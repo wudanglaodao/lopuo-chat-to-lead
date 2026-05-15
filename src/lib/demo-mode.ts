@@ -14,7 +14,10 @@ import {
 import { DEFAULT_WIDGET_LOGO_TEXT, DEFAULT_WIDGET_LOGO_TYPE, DEFAULT_WIDGET_LOGO_URL } from "@/lib/widget-brand";
 import { normalizeWidgetLocale } from "@/lib/widget-i18n";
 import {
+  DEFAULT_LAUNCHER_ANCHOR_GAP,
   normalizeLauncherBottomOffset,
+  normalizeLauncherAnchorGap,
+  normalizeLauncherAnchorSelector,
   normalizeLauncherHorizontalOffset,
   normalizeLauncherPosition,
 } from "@/lib/widget-launcher";
@@ -34,6 +37,8 @@ export function getDemoWidgetConfig({
   previewPosition,
   previewBottomOffset,
   previewHorizontalOffset,
+  previewAnchorSelector,
+  previewAnchorGap,
 }: {
   siteId?: string;
   previewStyle?: string | null;
@@ -41,6 +46,8 @@ export function getDemoWidgetConfig({
   previewPosition?: string | null;
   previewBottomOffset?: string | number | null;
   previewHorizontalOffset?: string | number | null;
+  previewAnchorSelector?: string | null;
+  previewAnchorGap?: string | number | null;
 } = {}) {
   const launcherStyle = ["pill", "vertical", "mascot"].includes(previewStyle || "")
     ? (previewStyle as "pill" | "vertical" | "mascot")
@@ -59,6 +66,8 @@ export function getDemoWidgetConfig({
     launcherPosition: normalizeLauncherPosition(previewPosition),
     launcherBottomOffset: normalizeLauncherBottomOffset(previewBottomOffset),
     launcherHorizontalOffset: normalizeLauncherHorizontalOffset(previewHorizontalOffset),
+    launcherAnchorSelector: normalizeLauncherAnchorSelector(previewAnchorSelector),
+    launcherAnchorGap: normalizeLauncherAnchorGap(previewAnchorGap ?? DEFAULT_LAUNCHER_ANCHOR_GAP),
     launcherImageUrl: "",
     launcherBadgeText: "1",
     launcherAnimation: "pulse",
