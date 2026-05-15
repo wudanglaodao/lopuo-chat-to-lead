@@ -138,19 +138,7 @@ export function AiContentAssistant({
         </div>
       ) : null}
 
-      <SmartTextArea
-        label="欢迎标题"
-        name="welcomeTitle"
-        value={welcomeTitle}
-        rows={2}
-        pendingAction={pendingAction}
-        onChange={setWelcomeTitle}
-        actions={[
-          { label: "生成", action: "generate", target: "welcome" },
-          { label: "优化", action: "improve", target: "welcome" },
-        ]}
-        onAssist={requestAssist}
-      />
+      <input type="hidden" name="welcomeTitle" value={welcomeTitle} readOnly />
 
       <SmartTextArea
         label="欢迎正文"
