@@ -58,10 +58,10 @@ describe("widget launcher settings", () => {
         launcherBottomOffset: 80,
       }),
     ).toMatchObject({
-      frameWidth: 92,
-      frameHeight: 182,
-      frameHorizontalOffset: 20,
-      frameBottomOffset: 66,
+      frameWidth: 112,
+      frameHeight: 202,
+      frameHorizontalOffset: 10,
+      frameBottomOffset: 56,
     });
   });
 

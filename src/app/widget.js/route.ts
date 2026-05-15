@@ -78,8 +78,8 @@ export function GET(request: NextRequest) {
   }
   function getFrameMetrics(style, horizontalOffset, bottomOffset) {
     var visualSize = getLauncherVisualSize(style);
-    var horizontalGutter = Math.min(14, horizontalOffset);
-    var bottomGutter = Math.min(14, bottomOffset);
+    var horizontalGutter = Math.min(24, horizontalOffset);
+    var bottomGutter = Math.min(24, bottomOffset);
     return {
       visualWidth: visualSize.width,
       visualHeight: visualSize.height,
