@@ -709,12 +709,12 @@ function LauncherButton({
       <button
         type="button"
         onClick={onOpen}
-        className={`lopuo-widget-launcher relative grid h-[52px] w-[52px] place-items-center rounded-full border border-white/90 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition duration-200 hover:scale-[1.04] ${animationClass}`}
+        className={`lopuo-widget-launcher relative grid h-[52px] w-[52px] place-items-center rounded-full border border-white/90 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-shadow duration-200 hover:shadow-[0_8px_20px_rgba(15,23,42,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 ${animationClass}`}
       >
         <PulseRing enabled={animation === "pulse"} color={themeColor} rounded="999px" />
         <MascotAvatar imageUrl={config?.launcherImageUrl} color={themeColor} />
         {config?.launcherBadgeText ? (
-          <span className="absolute -right-0.5 -top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+          <span className="absolute -right-0.5 -top-1 grid h-[18px] min-w-[18px] place-items-center px-1 text-[10px] font-bold leading-none text-[#ff2f68] drop-shadow-[0_1px_1px_rgba(255,255,255,0.95)]">
             {config.launcherBadgeText}
           </span>
         ) : null}
