@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   getLauncherFrameMetrics,
+  LAUNCHER_STYLES,
+  LAUNCHER_VISUAL_SIZES,
   normalizeLauncherBottomOffset,
   normalizeLauncherAnchorGap,
   normalizeLauncherAnchorSelector,
@@ -10,6 +12,7 @@ import {
   normalizeWidgetCustomCss,
   normalizeWidgetCustomJs,
   resolveResponsiveLauncherOffset,
+  WIDGET_LAUNCHER_FRAME_GUTTER,
 } from "@/lib/widget-launcher";
 
 describe("widget launcher settings", () => {
@@ -50,6 +53,23 @@ describe("widget launcher settings", () => {
     expect(resolveResponsiveLauncherOffset(34, 390)).toBe(18);
     expect(resolveResponsiveLauncherOffset(12, 390)).toBe(12);
 
+    for (const launcherStyle of LAUNCHER_STYLES) {
+      const metrics = getLauncherFrameMetrics({
+        launcherStyle,
+        launcherPosition: "bottom-right",
+        launcherHorizontalOffset: 34,
+        launcherBottomOffset: 20,
+      });
+      expect(metrics).toMatchObject({
+        frameHorizontalGutter: WIDGET_LAUNCHER_FRAME_GUTTER,
+        frameBottomGutter: WIDGET_LAUNCHER_FRAME_GUTTER,
+        frameWidth: LAUNCHER_VISUAL_SIZES[launcherStyle].width + WIDGET_LAUNCHER_FRAME_GUTTER * 2,
+        frameHeight: LAUNCHER_VISUAL_SIZES[launcherStyle].height + WIDGET_LAUNCHER_FRAME_GUTTER * 2,
+        frameHorizontalOffset: 34 - WIDGET_LAUNCHER_FRAME_GUTTER,
+        frameBottomOffset: 20 - WIDGET_LAUNCHER_FRAME_GUTTER,
+      });
+    }
+
     expect(
       getLauncherFrameMetrics({
         launcherStyle: "vertical",
@@ -58,10 +78,24 @@ describe("widget launcher settings", () => {
         launcherBottomOffset: 80,
       }),
     ).toMatchObject({
-      frameWidth: 112,
-      frameHeight: 202,
-      frameHorizontalOffset: 10,
-      frameBottomOffset: 56,
+      frameWidth: 160,
+      frameHeight: 250,
+      frameHorizontalOffset: -14,
+      frameBottomOffset: 32,
+    });
+
+    expect(
+      getLauncherFrameMetrics({
+        launcherStyle: "mascot",
+        launcherPosition: "bottom-right",
+        launcherHorizontalOffset: 34,
+        launcherBottomOffset: 20,
+      }),
+    ).toMatchObject({
+      frameWidth: 148,
+      frameHeight: 148,
+      frameHorizontalOffset: -14,
+      frameBottomOffset: -28,
     });
   });
 

@@ -30,6 +30,7 @@ export function GET(request: NextRequest) {
   var launcherBottomOffset = currentScript && currentScript.dataset ? currentScript.dataset.launcherBottomOffset : "";
   var launcherAnchorSelector = currentScript && currentScript.dataset ? currentScript.dataset.launcherAnchorSelector : "";
   var launcherAnchorGap = currentScript && currentScript.dataset ? currentScript.dataset.launcherAnchorGap : "";
+  var CLOSED_LAUNCHER_INTERACTION_GUTTER = 48;
   var lastFrameState = {
     isOpen: false,
     launcherStyle: previewStyle,
@@ -78,8 +79,8 @@ export function GET(request: NextRequest) {
   }
   function getFrameMetrics(style, horizontalOffset, bottomOffset) {
     var visualSize = getLauncherVisualSize(style);
-    var horizontalGutter = Math.min(24, horizontalOffset);
-    var bottomGutter = Math.min(24, bottomOffset);
+    var horizontalGutter = CLOSED_LAUNCHER_INTERACTION_GUTTER;
+    var bottomGutter = CLOSED_LAUNCHER_INTERACTION_GUTTER;
     return {
       visualWidth: visualSize.width,
       visualHeight: visualSize.height,
@@ -87,8 +88,8 @@ export function GET(request: NextRequest) {
       bottomGutter: bottomGutter,
       frameWidth: visualSize.width + horizontalGutter * 2,
       frameHeight: visualSize.height + bottomGutter * 2,
-      frameHorizontalOffset: Math.max(0, horizontalOffset - horizontalGutter),
-      frameBottomOffset: Math.max(0, bottomOffset - bottomGutter)
+      frameHorizontalOffset: horizontalOffset - horizontalGutter,
+      frameBottomOffset: bottomOffset - bottomGutter
     };
   }
   function resolveAnchorPosition(position, selector, gap, metrics) {
@@ -121,8 +122,8 @@ export function GET(request: NextRequest) {
     return {
       horizontalOffset: Math.round(sideOffset),
       bottomOffset: Math.round(bottomOffset),
-      frameHorizontalOffset: Math.max(0, Math.round(sideOffset) - metrics.horizontalGutter),
-      frameBottomOffset: Math.max(0, Math.round(bottomOffset) - metrics.bottomGutter)
+      frameHorizontalOffset: Math.round(sideOffset) - metrics.horizontalGutter,
+      frameBottomOffset: Math.round(bottomOffset) - metrics.bottomGutter
     };
   }
   function applyHorizontalPosition(position, offset) {

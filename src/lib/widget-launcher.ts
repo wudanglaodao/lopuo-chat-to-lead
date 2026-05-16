@@ -9,7 +9,12 @@ export const MAX_LAUNCHER_ANCHOR_GAP = 80;
 export const MAX_WIDGET_CUSTOM_CODE_LENGTH = 4000;
 export const MIN_RESPONSIVE_LAUNCHER_OFFSET = 18;
 export const RESPONSIVE_LAUNCHER_OFFSET_RATIO = 0.024;
-export const WIDGET_LAUNCHER_FRAME_GUTTER = 24;
+// Closed launcher frames are larger than the visible button by design.
+// Keep this as fixed interaction padding for every launcher style so pulse,
+// hover scale, badges, shadows, and future visual effects are not clipped by
+// the outer iframe. The frame offset may be negative to preserve the configured
+// visible-edge distance from the viewport.
+export const WIDGET_LAUNCHER_FRAME_GUTTER = 48;
 
 const ALLOWED_CUSTOM_CSS_SELECTORS = [
   ":root",
@@ -92,8 +97,8 @@ export function getLauncherFrameMetrics({
   const position = normalizeLauncherPosition(launcherPosition);
   const horizontalOffset = normalizeLauncherHorizontalOffset(launcherHorizontalOffset);
   const bottomOffset = normalizeLauncherBottomOffset(launcherBottomOffset);
-  const frameHorizontalGutter = Math.min(WIDGET_LAUNCHER_FRAME_GUTTER, horizontalOffset);
-  const frameBottomGutter = Math.min(WIDGET_LAUNCHER_FRAME_GUTTER, bottomOffset);
+  const frameHorizontalGutter = WIDGET_LAUNCHER_FRAME_GUTTER;
+  const frameBottomGutter = WIDGET_LAUNCHER_FRAME_GUTTER;
   const visualSize = LAUNCHER_VISUAL_SIZES[style];
 
   return {
@@ -105,8 +110,8 @@ export function getLauncherFrameMetrics({
     frameBottomGutter,
     frameWidth: visualSize.width + frameHorizontalGutter * 2,
     frameHeight: visualSize.height + frameBottomGutter * 2,
-    frameHorizontalOffset: Math.max(0, horizontalOffset - frameHorizontalGutter),
-    frameBottomOffset: Math.max(0, bottomOffset - frameBottomGutter),
+    frameHorizontalOffset: horizontalOffset - frameHorizontalGutter,
+    frameBottomOffset: bottomOffset - frameBottomGutter,
   };
 }
 

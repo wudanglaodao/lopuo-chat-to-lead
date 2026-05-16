@@ -714,7 +714,7 @@ function LauncherButton({
         <PulseRing enabled={animation === "pulse"} color={themeColor} rounded="999px" />
         <MascotAvatar imageUrl={config?.launcherImageUrl} color={themeColor} />
         {config?.launcherBadgeText ? (
-          <span className="absolute -right-0.5 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-white px-1 text-[10px] font-bold leading-none text-[#ff2f68]">
+          <span className="absolute -right-0.5 -top-1 grid h-4 w-4 place-items-center rounded-full bg-white text-[9px] font-bold leading-none text-[#ff2f68]">
             {config.launcherBadgeText}
           </span>
         ) : null}
