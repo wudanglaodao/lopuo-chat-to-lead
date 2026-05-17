@@ -136,19 +136,16 @@ export function GET(request: NextRequest) {
     }
   }
   function applyClosedAlignment(position, metrics) {
+    // The iframe viewport is the interaction frame. Do not add CSS padding here:
+    // it changes the actual visible-edge offset in host pages and previews.
     if (position === "bottom-left") {
       iframe.style.justifyItems = "start";
       iframe.style.alignItems = "end";
-      iframe.style.paddingLeft = metrics.horizontalGutter + "px";
-      iframe.style.paddingRight = metrics.horizontalGutter + "px";
     } else {
       iframe.style.justifyItems = "end";
       iframe.style.alignItems = "end";
-      iframe.style.paddingLeft = metrics.horizontalGutter + "px";
-      iframe.style.paddingRight = metrics.horizontalGutter + "px";
     }
-    iframe.style.paddingTop = metrics.bottomGutter + "px";
-    iframe.style.paddingBottom = metrics.bottomGutter + "px";
+    iframe.style.padding = "0";
   }
   function applyFrameState(isOpen, launcherStyle, launcherPosition, horizontalOffset, bottomOffset, anchorSelector, anchorGap) {
     var normalizedStyle = normalizeLauncherStyle(launcherStyle) || "vertical";

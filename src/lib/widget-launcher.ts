@@ -10,7 +10,7 @@ export const MAX_WIDGET_CUSTOM_CODE_LENGTH = 4000;
 export const MIN_RESPONSIVE_LAUNCHER_OFFSET = 18;
 export const RESPONSIVE_LAUNCHER_OFFSET_RATIO = 0.024;
 // Closed launcher frames are larger than the visible button by design.
-// Keep this as fixed interaction padding for every launcher style so pulse,
+// Keep this as a fixed interaction gutter for every launcher style so pulse,
 // hover scale, badges, shadows, and future visual effects are not clipped by
 // the outer iframe. The frame offset may be negative to preserve the configured
 // visible-edge distance from the viewport.

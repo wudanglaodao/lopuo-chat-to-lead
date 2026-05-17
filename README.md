@@ -102,7 +102,7 @@ ALLOW_FAKE_LLM=true
 
 Widget 使用 iframe 隔离样式，打开时会自动调整尺寸。`data-tenant-id` 可省略，省略时使用站点默认租户；如果同一个企业要在不同页面接入不同知识库，可以为不同入口指定不同租户 ID。`data-launcher-position` 支持 `bottom-right` / `bottom-left`，`data-launcher-horizontal-offset` 和 `data-launcher-bottom-offset` 配置可见入口边缘距离侧边、底部的像素值；侧边距会在窄屏自动收拢。`data-launcher-anchor-selector` 可选，用于对齐页面已有悬浮按钮，例如 lopuo.com 的 `.lopuo-scroll-top`，入口会跟随该按钮的侧边距并叠放在它上方。
 
-关闭态入口遵循统一交互画布规范：iframe 尺寸必须大于可见按钮本体，并预留固定安全区承载呼吸动画、hover 放大、角标和阴影；定位仍以可见按钮边缘为准，不能为了扩大画布改变侧边距观感。新增入口样式时需要复用这套 frame metrics。
+关闭态入口遵循统一交互画布规范：iframe 尺寸必须大于可见按钮本体，并预留固定安全区承载呼吸动画、hover 放大、角标和阴影；定位仍以可见按钮边缘为准，不能为了扩大画布改变侧边距观感。安全区只能来自 iframe 的 frame metrics，不能通过 iframe padding 实现，否则预览和嵌入站点会出现可见按钮偏移。新增入口样式时需要复用这套 frame metrics。
 
 ## 代码仓库
 
